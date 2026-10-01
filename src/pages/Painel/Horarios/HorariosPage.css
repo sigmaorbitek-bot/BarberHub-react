@@ -1,0 +1,428 @@
+.hours-page {
+  display: grid;
+  gap: 18px;
+}
+
+.hours-heading h1 {
+  margin: 5px 0 7px;
+  color: #fff;
+  font-size: clamp(1.9rem, 4.5vw, 2.55rem);
+  line-height: 1.05;
+}
+
+.hours-heading p {
+  margin: 0;
+  color: var(--panel-secondary);
+  font-size: 0.82rem;
+}
+
+.hours-heading p strong {
+  color: var(--panel-text);
+}
+
+.hours-eyebrow {
+  color: var(--panel-gold);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.hours-tabs {
+  display: inline-flex;
+  width: fit-content;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--panel-card);
+}
+
+.hours-tab {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--panel-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.hours-tab--active {
+  border-color: rgba(212, 175, 55, 0.28);
+  background: rgba(212, 175, 55, 0.08);
+  color: var(--panel-gold);
+}
+
+.hours-context-card,
+.hours-professional-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 13px;
+  background: var(--panel-card);
+}
+
+.hours-context-card > div:first-child {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel-elevated);
+}
+
+.hours-context-card strong {
+  color: var(--panel-text);
+  font-size: 0.72rem;
+}
+
+.hours-context-card p {
+  margin: 3px 0 0;
+  color: var(--panel-muted);
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.hours-professional-panel {
+  justify-content: space-between;
+}
+
+.hours-professional-select {
+  display: grid;
+  min-width: min(100%, 320px);
+  gap: 6px;
+}
+
+.hours-professional-select label {
+  color: var(--panel-muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hours-professional-select select {
+  min-height: 42px;
+  padding: 0 11px;
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  outline: 0;
+  background: #0c0f13;
+  color: var(--panel-text);
+  font: inherit;
+  font-size: 0.7rem;
+}
+
+.hours-mode-badge {
+  margin-left: auto;
+  padding: 6px 9px;
+  border: 1px solid rgba(74, 222, 128, 0.18);
+  border-radius: 999px;
+  background: rgba(74, 222, 128, 0.06);
+  color: #78dfa0;
+  font-size: 0.56rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.hours-mode-badge--custom {
+  border-color: rgba(212, 175, 55, 0.24);
+  background: rgba(212, 175, 55, 0.07);
+  color: var(--panel-gold);
+}
+
+.hours-reset-button {
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  background: #0c0f13;
+  color: var(--panel-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.hours-message {
+  padding: 11px 13px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 0.7rem;
+}
+
+.hours-message--success {
+  border-color: rgba(74, 222, 128, 0.22);
+  background: rgba(74, 222, 128, 0.07);
+  color: #78dfa0;
+}
+
+.hours-message--error {
+  border-color: rgba(193, 18, 31, 0.28);
+  background: rgba(193, 18, 31, 0.08);
+  color: #ff858b;
+}
+
+.hours-week {
+  display: grid;
+  gap: 10px;
+}
+
+.hours-day {
+  display: grid;
+  gap: 13px;
+  padding: 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 13px;
+  background: var(--panel-card);
+  opacity: 0.72;
+}
+
+.hours-day--open {
+  border-color: rgba(212, 175, 55, 0.14);
+  opacity: 1;
+}
+
+.hours-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.hours-day-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hours-day-name > span {
+  display: grid;
+  width: 42px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: #0c0f13;
+  color: var(--panel-gold);
+  font-size: 0.58rem;
+  font-weight: 900;
+}
+
+.hours-day-name strong {
+  color: var(--panel-text);
+  font-size: 0.76rem;
+}
+
+.hours-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.hours-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hours-switch > span {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: #0c0f13;
+}
+
+.hours-switch > span::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--panel-muted);
+  content: "";
+  transition: 0.18s ease;
+}
+
+.hours-switch input:checked + span {
+  border-color: rgba(212, 175, 55, 0.35);
+  background: rgba(212, 175, 55, 0.12);
+}
+
+.hours-switch input:checked + span::after {
+  left: 19px;
+  background: var(--panel-gold);
+}
+
+.hours-switch em {
+  color: var(--panel-muted);
+  font-size: 0.6rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.hours-day-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.hours-field {
+  display: grid;
+  gap: 6px;
+}
+
+.hours-field label {
+  color: var(--panel-muted);
+  font-size: 0.56rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.hours-field input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 9px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  outline: 0;
+  background: #0c0f13;
+  color: var(--panel-text);
+  color-scheme: dark;
+  font: inherit;
+  font-size: 0.68rem;
+}
+
+.hours-field input:focus {
+  border-color: var(--panel-gold);
+  box-shadow:
+    0 0 0 3px rgba(212, 175, 55, 0.07);
+}
+
+.hours-field input:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.hours-footer {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  border-radius: 13px;
+  background: rgba(17, 20, 25, 0.96);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.hours-footer strong {
+  color: var(--panel-text);
+  font-size: 0.7rem;
+}
+
+.hours-footer p {
+  margin: 3px 0 0;
+  color: var(--panel-muted);
+  font-size: 0.6rem;
+}
+
+.hours-save-button {
+  min-height: 43px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      135deg,
+      #b8860b,
+      #d4af37,
+      #ffd65a
+    );
+  color: #17120a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.hours-save-button:disabled,
+.hours-reset-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.hours-loading {
+  display: grid;
+  min-height: 280px;
+  place-items: center;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--panel-card);
+  color: var(--panel-muted);
+  font-size: 0.72rem;
+}
+
+@media (max-width: 900px) {
+  .hours-day-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .hours-tabs {
+    display: grid;
+    width: 100%;
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .hours-professional-panel,
+  .hours-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hours-professional-select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .hours-mode-badge {
+    width: fit-content;
+    margin-left: 0;
+  }
+
+  .hours-reset-button,
+  .hours-save-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .hours-day-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .hours-day-grid {
+    grid-template-columns: 1fr;
+  }
+}

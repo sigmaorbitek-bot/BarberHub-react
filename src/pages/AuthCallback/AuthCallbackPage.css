@@ -1,0 +1,168 @@
+.auth-callback-page {
+  display: grid;
+
+  width: 100%;
+  min-height: 100vh;
+
+  place-items: center;
+
+  padding:
+    max(24px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+
+  background:
+    radial-gradient(
+      circle at top,
+      rgba(0, 123, 255, 0.06),
+      transparent 40%
+    ),
+    #080808;
+
+  color: #f5f5f5;
+}
+
+.auth-callback-card {
+  display: grid;
+
+  width: min(100%, 430px);
+
+  justify-items: center;
+
+  gap: 11px;
+
+  padding: 38px 32px 28px;
+
+  border: 1px solid #292929;
+  border-top: 5px solid #d4af37;
+  border-radius: 18px;
+
+  background: #1a1a1a;
+
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.42);
+
+  text-align: center;
+}
+
+.auth-callback-logo {
+  width: 88px;
+  height: auto;
+
+  margin-bottom: 4px;
+
+  object-fit: contain;
+}
+
+.auth-callback-eyebrow {
+  color: #d4af37;
+
+  font-size: 0.66rem;
+  font-weight: 900;
+
+  letter-spacing: 0.12em;
+}
+
+.auth-callback-card h1 {
+  margin: 0 0 4px;
+
+  font-size: 1.7rem;
+}
+
+.auth-callback-spinner {
+  width: 34px;
+  height: 34px;
+
+  margin: 13px 0 5px;
+
+  border: 3px solid #303030;
+  border-top-color: #d4af37;
+  border-radius: 50%;
+
+  animation:
+    auth-callback-spin
+    0.8s
+    linear
+    infinite;
+}
+
+.auth-callback-status {
+  margin: 0;
+
+  color: #a6a6a6;
+
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.auth-callback-message {
+  width: 100%;
+
+  padding: 12px;
+
+  border-radius: 10px;
+
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.auth-callback-message--error {
+  border: 1px solid rgba(193, 18, 31, 0.28);
+
+  background: rgba(193, 18, 31, 0.1);
+
+  color: #ff7b83;
+}
+
+.auth-callback-button {
+  display: inline-flex;
+
+  width: 100%;
+  min-height: 46px;
+
+  align-items: center;
+  justify-content: center;
+
+  margin-top: 3px;
+
+  border-radius: 10px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #b8860b,
+      #d4af37,
+      #ffd65a
+    );
+
+  color: #17120a;
+
+  font-size: 0.82rem;
+  font-weight: 900;
+
+  text-decoration: none;
+}
+
+.auth-callback-card small {
+  margin-top: 12px;
+
+  color: #707070;
+
+  font-size: 0.66rem;
+}
+
+@keyframes auth-callback-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (
+  prefers-reduced-motion:
+    reduce
+) {
+  .auth-callback-spinner {
+    animation-duration: 2s;
+  }
+}

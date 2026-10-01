@@ -1,0 +1,55 @@
+.panel-layout {
+  --panel-bg: #080a0c;
+  --panel-card: #111419;
+  --panel-elevated: #191d23;
+  --panel-border: #272d35;
+  --panel-border-light: #343b45;
+  --panel-text: #f5f6f8;
+  --panel-secondary: #a5acb6;
+  --panel-muted: #747d89;
+  --panel-gold: #d4af37;
+  --panel-blue: #007bff;
+  --panel-red: #c1121f;
+
+  min-height: 100vh;
+
+  background:
+    radial-gradient(
+      circle at 58% -10%,
+      rgba(212, 175, 55, 0.035),
+      transparent 30%
+    ),
+    var(--panel-bg);
+
+  color: var(--panel-text);
+}
+
+.panel-layout-content {
+  min-height: 100vh;
+
+  margin-left: 272px;
+}
+
+.panel-layout-main {
+  width: min(100%, 1480px);
+
+  margin: 0 auto;
+
+  padding: 28px 28px 48px;
+}
+
+@media (max-width: 900px) {
+  .panel-layout-content {
+    margin-left: 0;
+  }
+
+  .panel-layout-main {
+    padding: 20px 15px 38px;
+  }
+}
+
+@media (max-width: 480px) {
+  .panel-layout-main {
+    padding: 16px 11px 32px;
+  }
+}

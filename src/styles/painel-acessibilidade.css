@@ -1,0 +1,386 @@
+html {
+  font-size: 112.5%;
+}
+
+body {
+  line-height: 1.5;
+}
+
+button,
+input,
+select,
+textarea {
+  font-size: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+select,
+input:not([type="checkbox"]):not([type="radio"]),
+textarea {
+  min-height: 44px;
+}
+
+small {
+  line-height: 1.45;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(212, 175, 55, 0.85);
+  outline-offset: 3px;
+}
+
+.clients-eyebrow,
+.professionals-eyebrow,
+.services-eyebrow,
+.agendamentos-eyebrow,
+.appointments-eyebrow,
+.horarios-eyebrow,
+.schedule-eyebrow,
+.dashboard-eyebrow,
+.professional-eyebrow {
+  font-size: max(0.68rem, 12px) !important;
+  line-height: 1.4;
+}
+
+.clients-heading p,
+.professionals-heading p,
+.services-heading p,
+.agendamentos-heading p,
+.appointments-heading p,
+.horarios-heading p,
+.schedule-heading p,
+.dashboard-heading p,
+.professional-page-heading p,
+.professional-page > p {
+  font-size: max(0.84rem, 14px) !important;
+  line-height: 1.55;
+}
+
+.clients-stats small,
+.professionals-stats small,
+.services-stats small,
+.agendamentos-stats small,
+.appointments-stats small,
+.dashboard-stats small,
+.client-history small,
+.professional-finance-grid small,
+.professional-dashboard-cards small {
+  font-size: max(0.66rem, 12px) !important;
+  line-height: 1.35;
+}
+
+.clients-stats strong,
+.professionals-stats strong,
+.services-stats strong,
+.agendamentos-stats strong,
+.appointments-stats strong,
+.dashboard-stats strong {
+  font-size: max(1rem, 16px) !important;
+}
+
+.clients-search input,
+.professionals-search input,
+.services-search input,
+.agendamentos-search input,
+.appointments-search input {
+  font-size: max(0.82rem, 14px) !important;
+}
+
+.clients-filter,
+.clients-refresh,
+.professionals-filter,
+.professionals-refresh,
+.services-filter,
+.services-refresh,
+.agendamentos-filter,
+.agendamentos-refresh,
+.appointments-filter,
+.appointments-refresh {
+  min-height: 46px !important;
+  font-size: max(0.76rem, 13px) !important;
+}
+
+.clients-primary,
+.clients-secondary,
+.professionals-primary,
+.professionals-secondary,
+.services-primary,
+.services-secondary,
+.agendamentos-primary,
+.appointments-primary {
+  min-height: 46px !important;
+  font-size: max(0.78rem, 14px) !important;
+}
+
+.client-card-content h2,
+.professional-card-content h2,
+.service-card-content h2 {
+  font-size: max(1.08rem, 18px) !important;
+}
+
+.client-card-content p,
+.professional-card-content p,
+.service-card-content p,
+.client-last-visit,
+.client-notes p,
+.professional-access-summary span,
+.professional-access-summary small {
+  font-size: max(0.72rem, 13px) !important;
+  line-height: 1.5;
+}
+
+.client-account-badge,
+.client-status,
+.professional-status,
+.service-status {
+  font-size: max(0.62rem, 11px) !important;
+}
+
+.client-history strong {
+  font-size: max(0.78rem, 14px) !important;
+}
+
+.client-card-actions button,
+.professional-card-actions button,
+.service-card-actions button {
+  min-height: 44px !important;
+  font-size: max(0.72rem, 13px) !important;
+}
+
+.clients-field label,
+.professionals-field label,
+.services-field label,
+.agendamentos-field label,
+.appointments-field label {
+  font-size: max(0.78rem, 14px) !important;
+}
+
+.clients-field input,
+.clients-field textarea,
+.professionals-field input,
+.professionals-field textarea,
+.services-field input,
+.services-field textarea,
+.agendamentos-field input,
+.agendamentos-field select,
+.appointments-field input,
+.appointments-field select {
+  min-height: 48px !important;
+  font-size: max(0.82rem, 14px) !important;
+}
+
+.clients-modal-header p,
+.professionals-modal-header p,
+.services-modal-header p,
+.agendamentos-modal-header p,
+.appointments-modal-header p {
+  font-size: max(0.75rem, 13px) !important;
+}
+
+.professional-layout {
+  grid-template-columns: 265px minmax(0, 1fr) !important;
+}
+
+.professional-sidebar {
+  padding: 18px 14px !important;
+}
+
+.professional-sidebar-avatar {
+  width: 46px !important;
+  height: 46px !important;
+}
+
+.professional-current-unit-avatar {
+  width: 48px !important;
+  height: 48px !important;
+}
+
+.professional-sidebar-brand strong {
+  font-size: max(0.8rem, 14px) !important;
+}
+
+.professional-sidebar-brand span,
+.professional-current-unit span,
+.professional-sidebar-footer > span,
+.professional-sidebar-footer > strong {
+  font-size: max(0.64rem, 12px) !important;
+}
+
+.professional-current-unit small,
+.professional-sidebar-group-title,
+.professional-header-left small {
+  font-size: max(0.64rem, 12px) !important;
+}
+
+.professional-current-unit strong,
+.professional-header-left strong {
+  font-size: max(0.78rem, 14px) !important;
+}
+
+.professional-menu-item {
+  min-height: 46px !important;
+  font-size: max(0.74rem, 13px) !important;
+}
+
+.professional-header {
+  min-height: 80px !important;
+}
+
+.professional-header-profile strong {
+  font-size: max(0.74rem, 13px) !important;
+}
+
+.professional-header-profile span {
+  font-size: max(0.64rem, 12px) !important;
+}
+
+.professional-header-avatar {
+  width: 48px !important;
+  height: 48px !important;
+}
+
+.professional-content {
+  padding: 24px 32px 44px !important;
+}
+
+.professional-dashboard-cards button {
+  min-height: 145px !important;
+  padding: 20px !important;
+}
+
+.professional-dashboard-cards strong {
+  font-size: max(0.9rem, 16px) !important;
+}
+
+.professional-dashboard-cards p,
+.professional-dashboard-info p {
+  font-size: max(0.72rem, 13px) !important;
+  line-height: 1.5;
+}
+
+.professional-dashboard-info strong {
+  font-size: max(0.76rem, 14px) !important;
+}
+
+.professional-appointment-main p,
+.professional-appointment-main small {
+  font-size: max(0.72rem, 13px) !important;
+}
+
+.professional-filter {
+  min-height: 44px !important;
+  font-size: max(0.76rem, 13px) !important;
+}
+
+.professional-period label,
+.professional-account-form label {
+  font-size: max(0.76rem, 13px) !important;
+}
+
+.professional-period input,
+.professional-account-form input {
+  min-height: 46px !important;
+  font-size: max(0.8rem, 14px) !important;
+}
+
+.professional-message,
+.professional-info-box,
+.professional-empty {
+  font-size: max(0.74rem, 13px) !important;
+  line-height: 1.5;
+}
+
+.painel-sidebar,
+.panel-sidebar,
+.sidebar {
+  font-size: 1rem;
+}
+
+.painel-sidebar .menu-item,
+.painel-sidebar a,
+.panel-sidebar .menu-item,
+.panel-sidebar a,
+.sidebar .sidebar-item {
+  min-height: 46px;
+  font-size: max(0.78rem, 14px) !important;
+}
+
+.painel-sidebar small,
+.panel-sidebar small,
+.sidebar small {
+  font-size: max(0.66rem, 12px) !important;
+  line-height: 1.4;
+}
+
+.painel-sidebar strong,
+.panel-sidebar strong,
+.sidebar strong {
+  font-size: max(0.76rem, 14px);
+}
+
+.painel-header,
+.panel-header {
+  min-height: 78px;
+}
+
+.painel-header small,
+.panel-header small {
+  font-size: max(0.66rem, 12px) !important;
+}
+
+.painel-header strong,
+.panel-header strong {
+  font-size: max(0.78rem, 14px) !important;
+}
+
+@media (min-width: 901px) {
+  .painel-sidebar,
+  .panel-sidebar {
+    width: 270px;
+  }
+}
+
+@media (max-width: 900px) {
+  html {
+    font-size: 106.25%;
+  }
+
+  .professional-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .professional-content {
+    padding: 20px 16px 34px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  html {
+    font-size: 100%;
+  }
+
+  button,
+  select,
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea {
+    min-height: 46px;
+  }
+
+  .clients-heading p,
+  .professionals-heading p,
+  .services-heading p,
+  .agendamentos-heading p,
+  .appointments-heading p,
+  .professional-page-heading p,
+  .professional-page > p {
+    font-size: 0.9rem !important;
+  }
+}
