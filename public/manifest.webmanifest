@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "BarberHub",
+  "short_name": "BarberHub",
+  "description": "Gestão inteligente para barbearias",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080a0d",
+  "theme_color": "#d4af37",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/barber.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

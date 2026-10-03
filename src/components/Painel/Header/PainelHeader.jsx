@@ -2,6 +2,8 @@ import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../../hooks/useAuth";
 import { useBarbearia } from "../../../hooks/useBarbearia";
+import Notificacoes from "../Notificacoes/Notificacoes";
+
 import "./PainelHeader.css";
 
 export default function PainelHeader({ onOpenMenu }) {
@@ -9,7 +11,7 @@ export default function PainelHeader({ onOpenMenu }) {
 
   const { profile } = useAuth();
 
-  const { barbeariaId, barbearia } = useBarbearia();
+  const { barbearia } = useBarbearia();
 
   const inicialBarbearia = String(barbearia?.nome || "B")
     .trim()
@@ -50,19 +52,12 @@ export default function PainelHeader({ onOpenMenu }) {
           ⇄<span>Trocar unidade</span>
         </button>
 
-        <button
-          type="button"
-          className="panel-header-icon-button"
-          title="Notificações"
-          aria-label="Notificações"
-          onClick={() => navigate(`/painel/${barbeariaId}`)}
-        >
-          🔔
-        </button>
+        <Notificacoes />
 
         <div className="panel-header-user">
           <div className="panel-header-user-info">
             <strong>{barbearia?.nome || "Barbearia"}</strong>
+
             <span>{profile?.nome || "Administrador"}</span>
           </div>
 

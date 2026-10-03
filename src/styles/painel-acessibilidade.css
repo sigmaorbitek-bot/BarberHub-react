@@ -384,3 +384,213 @@ small {
     font-size: 0.9rem !important;
   }
 }
+
+.products-eyebrow {
+  font-size: max(0.68rem, 12px) !important;
+  line-height: 1.4;
+}
+
+.products-heading p {
+  font-size: max(0.84rem, 14px) !important;
+  line-height: 1.55;
+}
+
+.products-stats small,
+.product-stock-grid small {
+  font-size: max(0.66rem, 12px) !important;
+}
+
+.products-stats strong {
+  font-size: max(1rem, 16px) !important;
+}
+
+.products-search input {
+  font-size: max(0.82rem, 14px) !important;
+}
+
+.products-filter,
+.products-refresh {
+  min-height: 46px !important;
+  font-size: max(0.76rem, 13px) !important;
+}
+
+.products-primary,
+.products-secondary {
+  min-height: 46px !important;
+  font-size: max(0.78rem, 14px) !important;
+}
+
+.product-card-content h2 {
+  font-size: max(1.08rem, 18px) !important;
+}
+
+.product-description,
+.product-revenue {
+  font-size: max(0.72rem, 13px) !important;
+}
+
+.product-card-actions button {
+  min-height: 44px !important;
+  font-size: max(0.72rem, 13px) !important;
+}
+
+.products-field label {
+  font-size: max(0.78rem, 14px) !important;
+}
+
+.products-field input,
+.products-field textarea {
+  min-height: 48px !important;
+  font-size: max(0.82rem, 14px) !important;
+}
+
+.products-modal-header p,
+.products-image-actions small,
+.products-field small {
+  font-size: max(0.72rem, 13px) !important;
+}
+
+.orders-eyebrow {
+  font-size: max(0.68rem, 12px) !important;
+}
+
+.orders-heading p,
+.order-client span,
+.order-notes p,
+.orders-modal-header p {
+  font-size: max(0.75rem, 13px) !important;
+}
+
+.orders-stats small,
+.order-client small,
+.order-values small,
+.order-meta small {
+  font-size: max(0.66rem, 12px) !important;
+}
+
+.orders-filter,
+.orders-refresh,
+.order-actions button {
+  min-height: 44px !important;
+  font-size: max(0.72rem, 13px) !important;
+}
+
+.orders-field label {
+  font-size: max(0.78rem, 14px) !important;
+}
+
+.orders-field input,
+.orders-field select,
+.orders-field textarea {
+  min-height: 48px !important;
+  font-size: max(0.82rem, 14px) !important;
+}
+
+.finance-eyebrow {
+  font-size: max(0.68rem, 12px) !important;
+}
+
+.finance-heading p,
+.finance-section-heading p,
+.finance-modal-header p {
+  font-size: max(0.78rem, 14px) !important;
+}
+
+.finance-stats small {
+  font-size: max(0.66rem, 12px) !important;
+}
+
+.finance-period label,
+.finance-field label {
+  font-size: max(0.78rem, 14px) !important;
+}
+
+.finance-period input,
+.finance-field input,
+.finance-field select,
+.finance-field textarea {
+  min-height: 48px !important;
+  font-size: max(0.82rem, 14px) !important;
+}
+
+.finance-primary,
+.finance-secondary,
+.finance-expense-actions button {
+  min-height: 44px !important;
+}
+
+
+.daily-finance-heading span,
+.daily-finance-date > div:first-child > span {
+  font-size: max(0.68rem, 12px) !important;
+}
+
+.daily-finance-heading p,
+.daily-finance-group-title small,
+.daily-finance-row span {
+  font-size: max(0.72rem, 13px) !important;
+}
+
+.daily-finance-group-title strong,
+.daily-finance-row > div > strong,
+.daily-finance-money {
+  font-size: max(0.78rem, 14px) !important;
+}
+
+
+.finance-eyebrow {
+  font-size: max(0.68rem, 12px) !important;
+}
+
+.finance-heading p,
+.finance-section-heading p,
+.finance-modal-header p {
+  font-size: max(0.78rem, 14px) !important;
+}
+
+.finance-stats small {
+  font-size: max(0.66rem, 12px) !important;
+}
+
+.finance-period label,
+.finance-field label {
+  font-size: max(0.78rem, 14px) !important;
+}
+
+.finance-period input,
+.finance-field input,
+.finance-field select,
+.finance-field textarea {
+  min-height: 48px !important;
+  font-size: max(0.82rem, 14px) !important;
+}
+
+.finance-primary,
+.finance-secondary,
+.finance-expense-actions button {
+  min-height: 44px !important;
+}
+
+.reviews-eyebrow,
+.review-response span {
+  font-size: max(0.68rem, 12px) !important;
+}
+
+.reviews-heading p,
+.review-client span,
+.review-context span,
+.reviews-modal-header p {
+  font-size: max(0.75rem, 13px) !important;
+}
+
+.review-comment p,
+.review-response p,
+.reviews-modal textarea {
+  font-size: max(0.82rem, 14px) !important;
+}
+
+.review-actions button,
+.reviews-refresh {
+  min-height: 44px !important;
+  font-size: max(0.72rem, 13px) !important;
+}

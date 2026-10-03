@@ -6,6 +6,7 @@ import PainelHeader from "../../components/Painel/Header/PainelHeader";
 import PainelSidebar from "../../components/Painel/Sidebar/PainelSidebar";
 import { BarbeariaProvider } from "../../contexts/BarbeariaContext";
 import { useBarbearia } from "../../hooks/useBarbearia";
+
 import "./PainelLayout.css";
 
 function PainelLayoutContent() {

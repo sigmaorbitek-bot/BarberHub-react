@@ -22,6 +22,10 @@ import ModuloPlaceholderPage from "../pages/Painel/ModuloPlaceholder/ModuloPlace
 import PainelHomePage from "../pages/Painel/PainelHomePage";
 import ProfissionaisPage from "../pages/Painel/Profissionais/ProfissionaisPage";
 import ServicosPage from "../pages/Painel/Servicos/ServicosPage";
+import ProdutosPage from "../pages/Painel/Produtos/ProdutosPage";
+import PedidosPage from "../pages/Painel/Pedidos/PedidosPage";
+import FinanceiroPage from "../pages/Painel/Financeiro/FinanceiroPage";
+import AvaliacoesPage from "../pages/Painel/Avaliacoes/AvaliacoesPage";
 
 import PrimeiroAcessoProfissionalPage from "../pages/Profissional/PrimeiroAcessoProfissionalPage";
 import ProfissionalAgendaPage from "../pages/Profissional/ProfissionalAgendaPage";
@@ -59,14 +63,12 @@ export default function AppRoutes() {
 
           <Route path="horarios" element={<HorariosPage />} />
           <Route path="clientes" element={<ClientesPage />} />
+          <Route path="produtos" element={<ProdutosPage />} />
+          <Route path="pedidos" element={<PedidosPage />} />
+          <Route path="financeiro" element={<FinanceiroPage />} />
+          <Route path="avaliacoes" element={<AvaliacoesPage />} />
 
-          {[
-            "produtos",
-            "pedidos",
-            "financeiro",
-            "avaliacoes",
-            "configuracoes",
-          ].map((path) => (
+          {["configuracoes"].map((path) => (
             <Route key={path} path={path} element={<ModuloPlaceholderPage />} />
           ))}
         </Route>

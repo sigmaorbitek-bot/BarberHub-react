@@ -1,0 +1,217 @@
+.notifications-root {
+  position: relative;
+}
+
+.notifications-bell {
+  position: relative;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel-card);
+  color: var(--panel-text);
+  cursor: pointer;
+  font-size: 1.05rem;
+}
+
+.notifications-badge {
+  position: absolute;
+  top: -6px;
+  right: -7px;
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  place-items: center;
+  border: 2px solid #080a0d;
+  border-radius: 999px;
+  background: #d4af37;
+  color: #111;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.notifications-panel {
+  position: absolute;
+  z-index: 150;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(430px, calc(100vw - 28px));
+  max-height: min(720px, calc(100vh - 95px));
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-top: 3px solid var(--panel-gold);
+  border-radius: 14px;
+  background: #101318;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.56);
+}
+
+.notifications-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 15px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.notifications-header strong {
+  display: block;
+  color: #fff;
+  font-size: 15px;
+}
+
+.notifications-header span {
+  color: var(--panel-muted);
+  font-size: 12px;
+}
+
+.notifications-header button,
+.notifications-push button {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: #0c0f13;
+  color: var(--panel-gold);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.notifications-push {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px;
+  padding: 11px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 10px;
+  background: rgba(212, 175, 55, 0.04);
+}
+
+.notifications-push strong {
+  color: var(--panel-text);
+  font-size: 13px;
+}
+
+.notifications-push p {
+  max-width: 270px;
+  margin: 4px 0 0;
+  color: var(--panel-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.notifications-push button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.notifications-message {
+  margin: 0 10px 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--panel-secondary);
+  font-size: 12px;
+}
+
+.notifications-list {
+  max-height: 470px;
+  overflow-y: auto;
+  border-top: 1px solid var(--panel-border);
+}
+
+.notification-item {
+  position: relative;
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  padding: 13px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--panel-border);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.notification-item:hover,
+.notification-item--unread {
+  background: rgba(212, 175, 55, 0.035);
+}
+
+.notification-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  background: #0c0f13;
+}
+
+.notification-content {
+  display: grid;
+  gap: 3px;
+}
+
+.notification-content strong {
+  color: var(--panel-text);
+  font-size: 13px;
+}
+
+.notification-content > span {
+  color: var(--panel-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.notification-content small {
+  color: var(--panel-muted);
+  font-size: 11px;
+}
+
+.notification-item > i {
+  width: 7px;
+  height: 7px;
+  align-self: center;
+  border-radius: 50%;
+  background: var(--panel-gold);
+}
+
+.notifications-empty {
+  display: grid;
+  min-height: 110px;
+  place-items: center;
+  padding: 20px;
+  color: var(--panel-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .notifications-panel {
+    position: fixed;
+    top: 72px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-height: calc(100vh - 84px);
+  }
+
+  .notifications-push {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .notifications-push p {
+    max-width: none;
+  }
+}
