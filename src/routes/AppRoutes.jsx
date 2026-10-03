@@ -1,14 +1,20 @@
 import { Route, Routes } from "react-router-dom";
 
-import AppShell from "../components/AppShell/AppShell";
 import ProtectedRoute from "../components/ProtectedRoute/ProtectedRoute";
+
+import ClienteLayout from "../pages/Cliente/ClienteLayout";
+import ClienteHomePage from "../pages/Cliente/ClienteHomePage";
+import ClienteContasPage from "../pages/Cliente/ClienteContasPage";
+import ClientePlaceholderPage from "../pages/Cliente/ClientePlaceholderPage";
+import ClienteAgendarPage from "../pages/Cliente/ClienteAgendarPage";
+import ClienteAgendamentosPage from "../pages/Cliente/ClienteAgendamentosPage";
+import ClienteNotificacoesPage from "../pages/Cliente/ClienteNotificacoesPage";
 
 import PainelLayout from "../layouts/PainelLayout/PainelLayout";
 
 import AuthCallbackPage from "../pages/AuthCallback/AuthCallbackPage";
 import CadastroBarbeariaPage from "../pages/Cadastro/CadastroBarbeariaPage";
 import CadastroClientePage from "../pages/Cadastro/CadastroClientePage";
-import ClienteHomePage from "../pages/Cliente/ClienteHomePage";
 import HomePage from "../pages/Home/Home";
 import LoginPage from "../pages/Login/LoginPage";
 import NotFoundPage from "../pages/NotFound/NotFoundPage";
@@ -18,14 +24,15 @@ import ClientesPage from "../pages/Painel/Clientes/ClientesPage";
 import AgendamentosPage from "../pages/Painel/Agendamentos/AgendamentosPage";
 import DashboardPage from "../pages/Painel/Dashboard/DashboardPage";
 import HorariosPage from "../pages/Painel/Horarios/HorariosPage";
-import ModuloPlaceholderPage from "../pages/Painel/ModuloPlaceholder/ModuloPlaceholderPage";
-import PainelHomePage from "../pages/Painel/PainelHomePage";
+import ContasReceberPage from "../pages/Painel/ContasReceber/ContasReceberPage";
+import PainelEntradaPage from "../pages/Painel/PainelEntradaPage";
 import ProfissionaisPage from "../pages/Painel/Profissionais/ProfissionaisPage";
 import ServicosPage from "../pages/Painel/Servicos/ServicosPage";
 import ProdutosPage from "../pages/Painel/Produtos/ProdutosPage";
 import PedidosPage from "../pages/Painel/Pedidos/PedidosPage";
 import FinanceiroPage from "../pages/Painel/Financeiro/FinanceiroPage";
 import AvaliacoesPage from "../pages/Painel/Avaliacoes/AvaliacoesPage";
+import Configuracoes from "../pages/Painel/Configuracoes/Configuracoes";
 
 import PrimeiroAcessoProfissionalPage from "../pages/Profissional/PrimeiroAcessoProfissionalPage";
 import ProfissionalAgendaPage from "../pages/Profissional/ProfissionalAgendaPage";
@@ -50,7 +57,7 @@ export default function AppRoutes() {
       <Route path="/cadastro/cliente" element={<CadastroClientePage />} />
 
       <Route element={<ProtectedRoute allowedTypes={["dono"]} />}>
-        <Route path="/painel" element={<PainelHomePage />} />
+        <Route path="/painel" element={<PainelEntradaPage />} />
 
         <Route path="/painel/:barbeariaId" element={<PainelLayout />}>
           <Route index element={<DashboardPage />} />
@@ -67,16 +74,74 @@ export default function AppRoutes() {
           <Route path="pedidos" element={<PedidosPage />} />
           <Route path="financeiro" element={<FinanceiroPage />} />
           <Route path="avaliacoes" element={<AvaliacoesPage />} />
-
-          {["configuracoes"].map((path) => (
-            <Route key={path} path={path} element={<ModuloPlaceholderPage />} />
-          ))}
+          <Route path="contas-receber" element={<ContasReceberPage />} />
+          <Route path="configuracoes" element={<Configuracoes />} />
         </Route>
       </Route>
 
       <Route element={<ProtectedRoute allowedTypes={["cliente"]} />}>
-        <Route element={<AppShell area="Área do cliente" />}>
-          <Route path="/cliente" element={<ClienteHomePage />} />
+        <Route path="/cliente" element={<ClienteLayout />}>
+          <Route index element={<ClienteHomePage />} />
+
+          <Route path="agendar" element={<ClienteAgendarPage />} />
+
+          <Route path="agendamentos" element={<ClienteAgendamentosPage />} />
+
+          <Route
+            path="produtos"
+            element={
+              <ClientePlaceholderPage
+                eyebrow="LOJA"
+                title="Produtos"
+                description="Veja os produtos disponíveis nas barbearias e escolha o que deseja comprar."
+                icon="🛍️"
+                nextStep="integrar o catálogo de produtos"
+              />
+            }
+          />
+
+          <Route
+            path="pedidos"
+            element={
+              <ClientePlaceholderPage
+                eyebrow="COMPRAS"
+                title="Meus pedidos"
+                description="Acompanhe o andamento e o histórico das suas compras."
+                icon="📦"
+                nextStep="integrar pedidos do cliente"
+              />
+            }
+          />
+
+          <Route path="contas" element={<ClienteContasPage />} />
+
+          <Route
+            path="avaliacoes"
+            element={
+              <ClientePlaceholderPage
+                eyebrow="EXPERIÊNCIA"
+                title="Avaliações"
+                description="Avalie atendimentos concluídos e acompanhe respostas da barbearia."
+                icon="⭐"
+                nextStep="integrar avaliações do cliente"
+              />
+            }
+          />
+
+          <Route path="notificacoes" element={<ClienteNotificacoesPage />} />
+
+          <Route
+            path="perfil"
+            element={
+              <ClientePlaceholderPage
+                eyebrow="MINHA CONTA"
+                title="Meu perfil"
+                description="Consulte e altere seus dados pessoais, senha e configurações da conta."
+                icon="👤"
+                nextStep="integrar perfil e segurança da conta"
+              />
+            }
+          />
         </Route>
       </Route>
 

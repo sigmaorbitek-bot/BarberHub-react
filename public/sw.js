@@ -1,126 +1,57 @@
-const CACHE_VERSION = "barberhub-v1";
-const DEFAULT_URL = "/";
+self.addEventListener("push", (event) => {
+  let payload = {};
 
-self.addEventListener(
-  "install",
-  () => {
-    self.skipWaiting();
-  },
-);
-
-self.addEventListener(
-  "activate",
-  (event) => {
-    event.waitUntil(
-      self.clients.claim(),
-    );
-  },
-);
-
-self.addEventListener(
-  "push",
-  (event) => {
-    let payload = {};
-
-    try {
-      payload =
-        event.data
-          ? event.data.json()
-          : {};
-    } catch {
-      payload = {
-        title: "BarberHub",
-        body:
-          event.data?.text() ||
-          "Você recebeu uma nova notificação.",
-      };
-    }
-
-    const title =
-      payload.title ||
-      "BarberHub";
-
-    const options = {
-      body:
-        payload.body ||
-        payload.mensagem ||
-        "Você recebeu uma nova notificação.",
-      icon:
-        payload.icon ||
-        "/barber.png",
-      badge:
-        payload.badge ||
-        "/barber.png",
-      tag:
-        payload.tag ||
-        payload.notificacao_id ||
-        undefined,
-      renotify: true,
-      data: {
-        url:
-          payload.url ||
-          DEFAULT_URL,
-        notificacao_id:
-          payload.notificacao_id ||
-          null,
-      },
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = {
+      title: "BarberHub",
+      body: event.data
+        ? event.data.text()
+        : "Você recebeu uma nova notificação.",
     };
+  }
 
-    event.waitUntil(
-      self.registration.showNotification(
-        title,
-        options,
-      ),
-    );
-  },
-);
+  const title = payload.title || "BarberHub";
 
-self.addEventListener(
-  "notificationclick",
-  (event) => {
-    event.notification.close();
+  const options = {
+    body: payload.body || "Você recebeu uma nova notificação.",
+    icon: payload.icon || "/barber.png",
+    badge: payload.badge || "/barber.png",
+    tag: payload.tag || "barberhub",
+    renotify: true,
+    data: {
+      url: payload.url || "/cliente/notificacoes",
+      notificacao_id: payload.notificacao_id || null,
+    },
+  };
 
-    const url =
-      event.notification.data
-        ?.url ||
-      DEFAULT_URL;
+  event.waitUntil(self.registration.showNotification(title, options));
+});
 
-    event.waitUntil(
-      self.clients
-        .matchAll({
-          type: "window",
-          includeUncontrolled:
-            true,
-        })
-        .then(
-          async (clients) => {
-            for (
-              const client
-              of clients
-            ) {
-              const clientUrl =
-                new URL(
-                  client.url,
-                );
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
 
-              if (
-                clientUrl.origin ===
-                self.location
-                  .origin
-              ) {
-                await client.focus();
-                client.navigate(
-                  url,
-                );
-                return;
-              }
-            }
+  const targetUrl = event.notification?.data?.url || "/";
 
-            return self.clients.openWindow(
-              url,
-            );
-          },
-        ),
-    );
-  },
-);
+  event.waitUntil(
+    clients
+      .matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      })
+      .then((clientList) => {
+        for (const client of clientList) {
+          const url = new URL(client.url);
+
+          if (url.origin === self.location.origin) {
+            client.navigate(targetUrl);
+
+            return client.focus();
+          }
+        }
+
+        return clients.openWindow(targetUrl);
+      }),
+  );
+});
