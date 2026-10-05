@@ -1,12 +1,57 @@
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
-const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
-const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT")!;
-const PUSH_WEBHOOK_SECRET = Deno.env.get("PUSH_WEBHOOK_SECRET")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY") ?? "";
+
+const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") ?? "";
+
+const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") ?? "";
+
+const PUSH_WEBHOOK_SECRET = Deno.env.get("PUSH_WEBHOOK_SECRET") ?? "";
+
+function validarConfiguracao() {
+  const ausentes: string[] = [];
+
+  if (!SUPABASE_URL) {
+    ausentes.push("SUPABASE_URL");
+  }
+
+  if (!SERVICE_ROLE_KEY) {
+    ausentes.push("SUPABASE_SERVICE_ROLE_KEY");
+  }
+
+  if (!VAPID_PUBLIC_KEY) {
+    ausentes.push("VAPID_PUBLIC_KEY");
+  }
+
+  if (!VAPID_PRIVATE_KEY) {
+    ausentes.push("VAPID_PRIVATE_KEY");
+  }
+
+  if (!VAPID_SUBJECT) {
+    ausentes.push("VAPID_SUBJECT");
+  }
+
+  if (!PUSH_WEBHOOK_SECRET) {
+    ausentes.push("PUSH_WEBHOOK_SECRET");
+  }
+
+  if (ausentes.length > 0) {
+    throw new Error(`Secrets ausentes: ${ausentes.join(", ")}`);
+  }
+
+  if (
+    !VAPID_SUBJECT.startsWith("mailto:") &&
+    !VAPID_SUBJECT.startsWith("https://")
+  ) {
+    throw new Error("VAPID_SUBJECT deve começar com mailto: ou https://");
+  }
+}
+
+validarConfiguracao();
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: {
@@ -15,11 +60,7 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   },
 });
 
-webpush.setVapidDetails(
-  VAPID_SUBJECT,
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY,
-);
+webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 const PREFERENCE_BY_TYPE: Record<string, string> = {
   novo_agendamento: "novo_agendamento",
@@ -27,36 +68,101 @@ const PREFERENCE_BY_TYPE: Record<string, string> = {
   agendamento_alterado: "agendamento_alterado",
   agendamento_confirmado: "agendamento_confirmado",
   lembrete_agendamento: "lembrete_agendamento",
+
   novo_pedido: "novo_pedido",
   pedido_atualizado: "pedido_atualizado",
+
   estoque_baixo: "estoque_baixo",
+
   nova_avaliacao: "nova_avaliacao",
+
   conta_vencendo: "conta_vencendo",
   conta_vencida: "conta_vencida",
+
   pagamento_recebido: "pagamento_recebido",
 };
 
 function json(body: unknown, status = 200) {
-  return Response.json(body, { status });
+  return Response.json(body, {
+    status,
+  });
+}
+
+function obterCorpoErroPush(error: any) {
+  const body = error?.body;
+
+  if (!body) {
+    return null;
+  }
+
+  if (typeof body === "string") {
+    return body;
+  }
+
+  try {
+    if (body instanceof Uint8Array || ArrayBuffer.isView(body)) {
+      return new TextDecoder().decode(body);
+    }
+  } catch {
+    // Continua para a tentativa abaixo.
+  }
+
+  try {
+    return JSON.stringify(body);
+  } catch {
+    return String(body);
+  }
+}
+
+function sanitizarHeaders(headers: unknown) {
+  if (!headers) {
+    return null;
+  }
+
+  try {
+    if (headers instanceof Headers) {
+      return Object.fromEntries(headers.entries());
+    }
+
+    return headers;
+  } catch {
+    return null;
+  }
 }
 
 Deno.serve(async (request) => {
   if (request.method !== "POST") {
-    return json({ ok: false, error: "Method not allowed" }, 405);
+    return json(
+      {
+        ok: false,
+        error: "Method not allowed",
+      },
+      405,
+    );
   }
 
-  if (
-    !PUSH_WEBHOOK_SECRET ||
-    request.headers.get("x-webhook-secret") !== PUSH_WEBHOOK_SECRET
-  ) {
-    return json({ ok: false, error: "Unauthorized" }, 401);
+  const webhookSecret = request.headers.get("x-webhook-secret");
+
+  if (!PUSH_WEBHOOK_SECRET || webhookSecret !== PUSH_WEBHOOK_SECRET) {
+    console.error("[BarberSig] Webhook não autorizado.");
+
+    return json(
+      {
+        ok: false,
+        error: "Unauthorized",
+      },
+      401,
+    );
   }
 
   try {
     const payload = await request.json();
+
     const notification = payload?.record || payload?.notification || payload;
 
     if (!notification?.id || !notification?.usuario_id) {
+      console.log("[BarberSig] Notificação ignorada: destinatário ausente.");
+
       return json({
         ok: true,
         ignored: true,
@@ -78,6 +184,11 @@ Deno.serve(async (request) => {
       }
 
       if (preferences && preferences[preferenceColumn] === false) {
+        console.log("[BarberSig] Push ignorado por preferência do usuário:", {
+          usuario_id: notification.usuario_id,
+          tipo: notification.tipo,
+        });
+
         return json({
           ok: true,
           sent: 0,
@@ -88,7 +199,10 @@ Deno.serve(async (request) => {
 
     const { count: unreadCount, error: unreadError } = await supabase
       .from("notificacoes")
-      .select("id", { count: "exact", head: true })
+      .select("id", {
+        count: "exact",
+        head: true,
+      })
       .eq("usuario_id", notification.usuario_id)
       .eq("lida", false);
 
@@ -107,25 +221,35 @@ Deno.serve(async (request) => {
     }
 
     if (!subscriptions?.length) {
+      console.log("[BarberSig] Nenhuma subscription ativa:", {
+        usuario_id: notification.usuario_id,
+      });
+
       return json({
         ok: true,
         sent: 0,
         invalid: 0,
+        failed: 0,
         reason: "no_active_subscription",
       });
     }
 
     const pushPayload = JSON.stringify({
       notificacao_id: notification.id,
-      title: notification.titulo || "BarberHub",
-      body:
-        notification.mensagem ||
-        "Você recebeu uma nova notificação.",
+
+      title: notification.titulo || "BarberSig",
+
+      body: notification.mensagem || "Você recebeu uma nova notificação.",
+
       url: notification.rota || "/",
+
       icon: "/icons/icon-192.png",
+
       badge: "/icons/badge-96.png",
+
       badge_count: Math.max(0, Number(unreadCount || 0)),
-      tag: `${notification.tipo || "barberhub"}:${
+
+      tag: `${notification.tipo || "barbersig"}:${
         notification.referencia_id || notification.id
       }`,
     });
@@ -139,8 +263,10 @@ Deno.serve(async (request) => {
         await webpush.sendNotification(
           {
             endpoint: subscription.endpoint,
+
             keys: {
               p256dh: subscription.p256dh,
+
               auth: subscription.auth_key,
             },
           },
@@ -152,31 +278,68 @@ Deno.serve(async (request) => {
         );
 
         sent += 1;
+
+        console.log("[BarberSig] Push enviado:", {
+          subscription_id: subscription.id,
+
+          notificacao_id: notification.id,
+        });
       } catch (error: any) {
-        const statusCode = Number(
-          error?.statusCode || error?.status || 0,
-        );
+        const statusCode = Number(error?.statusCode || error?.status || 0);
+
+        const responseBody = obterCorpoErroPush(error);
+
+        const responseHeaders = sanitizarHeaders(error?.headers);
 
         if (statusCode === 404 || statusCode === 410) {
           invalid += 1;
 
           const { error: deactivateError } = await supabase
             .from("push_subscriptions")
-            .update({ ativo: false })
+            .update({
+              ativo: false,
+            })
             .eq("id", subscription.id);
 
           if (deactivateError) {
             console.error(
-              "[BarberHub] Failed to deactivate invalid subscription:",
-              deactivateError,
+              "[BarberSig] Falha ao desativar subscription inválida:",
+              {
+                subscription_id: subscription.id,
+
+                error: deactivateError,
+              },
             );
           }
+
+          console.warn("[BarberSig] Subscription inválida desativada:", {
+            subscription_id: subscription.id,
+
+            statusCode,
+
+            body: responseBody,
+          });
         } else {
           failed += 1;
-          console.error("[BarberHub] Push failed:", {
+
+          console.error("[BarberSig] Push failed:", {
             subscription_id: subscription.id,
+
+            endpoint_host: (() => {
+              try {
+                return new URL(subscription.endpoint).host;
+              } catch {
+                return "invalid-endpoint";
+              }
+            })(),
+
             statusCode,
-            message: error?.message,
+
+            message: error?.message || null,
+
+            body: responseBody,
+
+            headers: responseHeaders,
           });
         }
       }
@@ -191,30 +354,42 @@ Deno.serve(async (request) => {
         .eq("id", notification.id);
 
       if (updateError) {
-        console.error(
-          "[BarberHub] Failed to mark notification as pushed:",
-          updateError,
-        );
+        console.error("[BarberSig] Falha ao registrar push_enviado_at:", {
+          notificacao_id: notification.id,
+
+          error: updateError,
+        });
       }
     }
+
+    console.log("[BarberSig] Resultado do envio:", {
+      notificacao_id: notification.id,
+
+      usuario_id: notification.usuario_id,
+
+      sent,
+      invalid,
+      failed,
+
+      unread: Math.max(0, Number(unreadCount || 0)),
+    });
 
     return json({
       ok: true,
       sent,
       invalid,
       failed,
+
       unread: Math.max(0, Number(unreadCount || 0)),
     });
   } catch (error) {
-    console.error("[BarberHub] enviar-push:", error);
+    console.error("[BarberSig] enviar-push:", error);
 
     return json(
       {
         ok: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Erro interno",
+
+        error: error instanceof Error ? error.message : "Erro interno",
       },
       500,
     );
