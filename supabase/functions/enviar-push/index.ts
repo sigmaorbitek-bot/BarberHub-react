@@ -2,29 +2,31 @@ import webpush from "npm:web-push@3.6.7";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
-
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
-
 const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT")!;
-
 const PUSH_WEBHOOK_SECRET = Deno.env.get("PUSH_WEBHOOK_SECRET")!;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: {
     persistSession: false,
+    autoRefreshToken: false,
   },
 });
 
-webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+webpush.setVapidDetails(
+  VAPID_SUBJECT,
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY,
+);
 
 const PREFERENCE_BY_TYPE: Record<string, string> = {
   novo_agendamento: "novo_agendamento",
   agendamento_cancelado: "agendamento_cancelado",
+  agendamento_alterado: "agendamento_alterado",
   agendamento_confirmado: "agendamento_confirmado",
+  lembrete_agendamento: "lembrete_agendamento",
   novo_pedido: "novo_pedido",
   pedido_atualizado: "pedido_atualizado",
   estoque_baixo: "estoque_baixo",
@@ -34,28 +36,31 @@ const PREFERENCE_BY_TYPE: Record<string, string> = {
   pagamento_recebido: "pagamento_recebido",
 };
 
+function json(body: unknown, status = 200) {
+  return Response.json(body, { status });
+}
+
 Deno.serve(async (request) => {
   if (request.method !== "POST") {
-    return new Response("Method not allowed", {
-      status: 405,
-    });
+    return json({ ok: false, error: "Method not allowed" }, 405);
   }
 
-  if (request.headers.get("x-webhook-secret") !== PUSH_WEBHOOK_SECRET) {
-    return new Response("Unauthorized", {
-      status: 401,
-    });
+  if (
+    !PUSH_WEBHOOK_SECRET ||
+    request.headers.get("x-webhook-secret") !== PUSH_WEBHOOK_SECRET
+  ) {
+    return json({ ok: false, error: "Unauthorized" }, 401);
   }
 
   try {
     const payload = await request.json();
-
     const notification = payload?.record || payload?.notification || payload;
 
     if (!notification?.id || !notification?.usuario_id) {
-      return Response.json({
+      return json({
         ok: true,
         ignored: true,
+        reason: "notification_without_recipient",
       });
     }
 
@@ -73,11 +78,22 @@ Deno.serve(async (request) => {
       }
 
       if (preferences && preferences[preferenceColumn] === false) {
-        return Response.json({
+        return json({
           ok: true,
+          sent: 0,
           skipped: "preference_disabled",
         });
       }
+    }
+
+    const { count: unreadCount, error: unreadError } = await supabase
+      .from("notificacoes")
+      .select("id", { count: "exact", head: true })
+      .eq("usuario_id", notification.usuario_id)
+      .eq("lida", false);
+
+    if (unreadError) {
+      throw unreadError;
     }
 
     const { data: subscriptions, error: subscriptionsError } = await supabase
@@ -91,24 +107,32 @@ Deno.serve(async (request) => {
     }
 
     if (!subscriptions?.length) {
-      return Response.json({
+      return json({
         ok: true,
         sent: 0,
+        invalid: 0,
+        reason: "no_active_subscription",
       });
     }
 
     const pushPayload = JSON.stringify({
       notificacao_id: notification.id,
       title: notification.titulo || "BarberHub",
-      body: notification.mensagem || "Você recebeu uma nova notificação.",
+      body:
+        notification.mensagem ||
+        "Você recebeu uma nova notificação.",
       url: notification.rota || "/",
-      icon: "/barber.png",
-      badge: "/barber.png",
-      tag: `${notification.tipo || "barberhub"}:${notification.referencia_id || notification.id}`,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/badge-96.png",
+      badge_count: Math.max(0, Number(unreadCount || 0)),
+      tag: `${notification.tipo || "barberhub"}:${
+        notification.referencia_id || notification.id
+      }`,
     });
 
     let sent = 0;
     let invalid = 0;
+    let failed = 0;
 
     for (const subscription of subscriptions) {
       try {
@@ -129,48 +153,70 @@ Deno.serve(async (request) => {
 
         sent += 1;
       } catch (error: any) {
-        const statusCode = Number(error?.statusCode || error?.status);
+        const statusCode = Number(
+          error?.statusCode || error?.status || 0,
+        );
 
         if (statusCode === 404 || statusCode === 410) {
           invalid += 1;
 
-          await supabase
+          const { error: deactivateError } = await supabase
             .from("push_subscriptions")
-            .update({
-              ativo: false,
-            })
+            .update({ ativo: false })
             .eq("id", subscription.id);
+
+          if (deactivateError) {
+            console.error(
+              "[BarberHub] Failed to deactivate invalid subscription:",
+              deactivateError,
+            );
+          }
         } else {
-          console.error("Push failed:", error);
+          failed += 1;
+          console.error("[BarberHub] Push failed:", {
+            subscription_id: subscription.id,
+            statusCode,
+            message: error?.message,
+          });
         }
       }
     }
 
     if (sent > 0) {
-      await supabase
+      const { error: updateError } = await supabase
         .from("notificacoes")
         .update({
           push_enviado_at: new Date().toISOString(),
         })
         .eq("id", notification.id);
+
+      if (updateError) {
+        console.error(
+          "[BarberHub] Failed to mark notification as pushed:",
+          updateError,
+        );
+      }
     }
 
-    return Response.json({
+    return json({
       ok: true,
       sent,
       invalid,
+      failed,
+      unread: Math.max(0, Number(unreadCount || 0)),
     });
   } catch (error) {
-    console.error("enviar-push:", error);
+    console.error("[BarberHub] enviar-push:", error);
 
-    return Response.json(
+    return json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : "Erro interno",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Erro interno",
       },
-      {
-        status: 500,
-      },
+      500,
     );
   }
 });

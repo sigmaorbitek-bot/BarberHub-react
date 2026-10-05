@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { supabase } from "../../services/supabase";
+import { supabase } from "../../../services/supabase";
 import "./ClienteContasPage.css";
 
 const STATUS = {

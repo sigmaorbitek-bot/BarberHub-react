@@ -15,6 +15,7 @@ import {
   ativarPush,
   desativarPush,
   obterEstadoPush,
+  syncAppBadgeFromDatabase,
 } from "../../../services/pushNotifications";
 
 import "./Notificacoes.css";
@@ -128,6 +129,8 @@ export default function Notificacoes() {
           setNotificacoes(
             data || [],
           );
+
+          syncAppBadgeFromDatabase();
         } catch (error) {
           console.error(
             "[BarberHub] Erro ao carregar notificações:",
@@ -268,6 +271,8 @@ export default function Notificacoes() {
                   : notificacao,
             ),
         );
+
+        await syncAppBadgeFromDatabase();
       }
     }
 
@@ -306,6 +311,8 @@ export default function Notificacoes() {
           }),
         ),
     );
+
+    await syncAppBadgeFromDatabase();
   }
 
   async function togglePush() {
@@ -330,6 +337,7 @@ export default function Notificacoes() {
       }
 
       await carregarPush();
+      await syncAppBadgeFromDatabase();
     } catch (error) {
       setMessage(
         error?.message ||

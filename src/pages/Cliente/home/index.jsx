@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { useAuth } from "../../hooks/useAuth";
-import { supabase } from "../../services/supabase";
+import { useAuth } from "../../../hooks/useAuth";
+import { supabase } from "../../../services/supabase";
 
 import "./ClienteHomePage.css";
 
@@ -67,22 +67,15 @@ export default function ClienteHomePage() {
       setLoadingContas(true);
       setErroContas("");
 
-      const { data, error } = await supabase.rpc(
-        "listar_contas_cliente",
-      );
+      const { data, error } = await supabase.rpc("listar_contas_cliente");
 
       if (!active) return;
 
       if (error) {
-        console.error(
-          "[BarberHub] Resumo de contas do cliente:",
-          error,
-        );
+        console.error("[BarberHub] Resumo de contas do cliente:", error);
 
         setContas([]);
-        setErroContas(
-          "Não foi possível carregar suas contas agora.",
-        );
+        setErroContas("Não foi possível carregar suas contas agora.");
         setLoadingContas(false);
         return;
       }
@@ -101,10 +94,7 @@ export default function ClienteHomePage() {
   const financialSummary = useMemo(() => {
     return contas.reduce(
       (summary, account) => {
-        if (
-          account.status === "cancelado" ||
-          account.status === "pago"
-        ) {
+        if (account.status === "cancelado" || account.status === "pago") {
           return summary;
         }
 
@@ -134,22 +124,17 @@ export default function ClienteHomePage() {
     <section className="client-home">
       <div className="client-home-hero">
         <div>
-          <span className="client-home-eyebrow">
-            ÁREA DO CLIENTE
-          </span>
+          <span className="client-home-eyebrow">ÁREA DO CLIENTE</span>
 
           <h1>Olá, {firstName} 👋</h1>
 
           <p>
-            Agende seus horários, acompanhe pedidos, contas,
-            avaliações e tudo o que acontece com você no BarberHub.
+            Agende seus horários, acompanhe pedidos, contas, avaliações e tudo o
+            que acontece com você no BarberHub.
           </p>
         </div>
 
-        <Link
-          to="/cliente/agendar"
-          className="client-home-primary"
-        >
+        <Link to="/cliente/agendar" className="client-home-primary">
           📅 Agendar horário
         </Link>
       </div>
@@ -162,21 +147,16 @@ export default function ClienteHomePage() {
             <small>PRÓXIMO HORÁRIO</small>
             <strong>Consulte sua agenda</strong>
             <p>
-              Seus próximos atendimentos ficam organizados em
-              Meus agendamentos.
+              Seus próximos atendimentos ficam organizados em Meus agendamentos.
             </p>
           </div>
 
-          <Link to="/cliente/agendamentos">
-            Ver agenda →
-          </Link>
+          <Link to="/cliente/agendamentos">Ver agenda →</Link>
         </article>
 
         <article
           className={`client-home-highlight${
-            financialSummary.overdue > 0
-              ? " client-home-highlight--danger"
-              : ""
+            financialSummary.overdue > 0 ? " client-home-highlight--danger" : ""
           }`}
         >
           <span aria-hidden="true">💰</span>
@@ -185,9 +165,7 @@ export default function ClienteHomePage() {
             <small>MINHAS CONTAS</small>
 
             <strong>
-              {loadingContas
-                ? "Carregando..."
-                : moeda(financialSummary.open)}
+              {loadingContas ? "Carregando..." : moeda(financialSummary.open)}
             </strong>
 
             <p>
@@ -199,9 +177,7 @@ export default function ClienteHomePage() {
             </p>
           </div>
 
-          <Link to="/cliente/contas">
-            Ver contas →
-          </Link>
+          <Link to="/cliente/contas">Ver contas →</Link>
         </article>
 
         <article className="client-home-highlight">
@@ -211,14 +187,11 @@ export default function ClienteHomePage() {
             <small>AVISOS</small>
             <strong>Central de notificações</strong>
             <p>
-              Confirmações, alterações, pedidos e pagamentos em
-              um só lugar.
+              Confirmações, alterações, pedidos e pagamentos em um só lugar.
             </p>
           </div>
 
-          <Link to="/cliente/notificacoes">
-            Ver avisos →
-          </Link>
+          <Link to="/cliente/notificacoes">Ver avisos →</Link>
         </article>
       </div>
 
@@ -235,9 +208,7 @@ export default function ClienteHomePage() {
             key={action.title}
             to={action.to}
             className={`client-home-action${
-              action.primary
-                ? " client-home-action--primary"
-                : ""
+              action.primary ? " client-home-action--primary" : ""
             }`}
           >
             <span aria-hidden="true">{action.icon}</span>
@@ -258,8 +229,8 @@ export default function ClienteHomePage() {
         <div>
           <strong>Seu espaço no BarberHub</strong>
           <p>
-            Sua conta pode acompanhar diferentes barbearias sem
-            precisar criar um novo cadastro para cada unidade.
+            Sua conta pode acompanhar diferentes barbearias sem precisar criar
+            um novo cadastro para cada unidade.
           </p>
         </div>
       </div>

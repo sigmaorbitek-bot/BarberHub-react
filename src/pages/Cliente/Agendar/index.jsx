@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { supabase } from "../../services/supabase";
+import { supabase } from "../../../services/supabase";
 import "./ClienteAgendarPage.css";
 
 function moeda(valor) {

@@ -6,8 +6,9 @@ import {
   disableWebPush,
   enableWebPush,
   getWebPushStatus,
-} from "../../services/pushNotifications";
-import { supabase } from "../../services/supabase";
+  syncAppBadgeFromDatabase,
+} from "../../../services/pushNotifications";
+import { supabase } from "../../../services/supabase";
 
 import "./ClienteNotificacoesPage.css";
 
@@ -57,6 +58,9 @@ export default function ClienteNotificacoesPage() {
 
   const [pushMessage, setPushMessage] = useState("");
 
+  const [pushIOS, setPushIOS] = useState(false);
+  const [pushStandalone, setPushStandalone] = useState(false);
+
   const carregarStatusPush = useCallback(async () => {
     setPushLoading(true);
 
@@ -68,6 +72,8 @@ export default function ClienteNotificacoesPage() {
       setPushPermission(status.permission);
 
       setPushActive(status.active);
+      setPushIOS(Boolean(status.ios));
+      setPushStandalone(Boolean(status.standalone));
     } catch (error) {
       console.warn("[BarberHub] Status Web Push:", error);
     } finally {
@@ -92,6 +98,7 @@ export default function ClienteNotificacoesPage() {
       }
 
       setNotificacoes(data || []);
+      await syncAppBadgeFromDatabase();
     } catch (error) {
       console.error("[BarberHub] Notificações do cliente:", error);
 
@@ -143,6 +150,7 @@ export default function ClienteNotificacoesPage() {
         setPushPermission("granted");
 
         setPushMessage("Notificações deste dispositivo ativadas.");
+        await syncAppBadgeFromDatabase();
       }
     } catch (error) {
       console.error("[BarberHub] Web Push do cliente:", error);
@@ -190,6 +198,7 @@ export default function ClienteNotificacoesPage() {
       );
 
       window.dispatchEvent(new Event("barberhub:notificacoes-atualizadas"));
+      await syncAppBadgeFromDatabase();
 
       if (item.rota) {
         navigate(item.rota);
@@ -226,6 +235,7 @@ export default function ClienteNotificacoesPage() {
       );
 
       window.dispatchEvent(new Event("barberhub:notificacoes-atualizadas"));
+      await syncAppBadgeFromDatabase();
     } catch (error) {
       console.error("[BarberHub] Marcar todas notificações:", error);
 
@@ -265,10 +275,18 @@ export default function ClienteNotificacoesPage() {
         <div className="client-push-content">
           <strong>Notificações neste dispositivo</strong>
 
-          <p>
-            Receba confirmações, cancelamentos, pagamentos e outros avisos mesmo
-            quando não estiver olhando esta tela.
-          </p>
+          {pushIOS && !pushStandalone ? (
+            <p>
+              No iPhone/iPad: toque em Compartilhar → Adicionar à Tela de
+              Início. Depois abra o BarberHub pelo ícone e ative as notificações
+              aqui.
+            </p>
+          ) : (
+            <p>
+              Receba confirmações, cancelamentos, pagamentos e outros avisos
+              mesmo quando o BarberHub não estiver aberto.
+            </p>
+          )}
 
           {pushMessage ? (
             <span className="client-push-message">{pushMessage}</span>
@@ -292,7 +310,9 @@ export default function ClienteNotificacoesPage() {
           className={`client-push-button${
             pushActive ? " client-push-button--active" : ""
           }`}
-          disabled={pushLoading || !pushSupported}
+          disabled={
+            pushLoading || !pushSupported || (pushIOS && !pushStandalone)
+          }
           onClick={togglePush}
         >
           {pushLoading

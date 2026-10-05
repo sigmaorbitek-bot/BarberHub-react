@@ -420,3 +420,37 @@
     font-size: 0.53rem;
   }
 }
+
+/* Foto do cliente no sidebar e topbar */
+.client-avatar,
+.client-topbar-avatar {
+  overflow: hidden;
+}
+
+.client-avatar img,
+.client-topbar-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.client-topbar-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(212, 175, 55, 0.46);
+  border-radius: 50%;
+  background: #11171d;
+  color: #edca4f;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+@media (max-width: 420px) {
+  .client-topbar-avatar {
+    width: 30px;
+    height: 30px;
+  }
+}

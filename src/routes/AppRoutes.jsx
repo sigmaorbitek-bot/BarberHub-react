@@ -2,15 +2,21 @@ import { Route, Routes } from "react-router-dom";
 
 import ProtectedRoute from "../components/ProtectedRoute/ProtectedRoute";
 
-import ClienteLayout from "../pages/Cliente/ClienteLayout";
-import ClienteHomePage from "../pages/Cliente/ClienteHomePage";
-import ClienteContasPage from "../pages/Cliente/ClienteContasPage";
-import ClientePlaceholderPage from "../pages/Cliente/ClientePlaceholderPage";
-import ClienteAgendarPage from "../pages/Cliente/ClienteAgendarPage";
-import ClienteAgendamentosPage from "../pages/Cliente/ClienteAgendamentosPage";
-import ClienteNotificacoesPage from "../pages/Cliente/ClienteNotificacoesPage";
 
+import ClienteHomePage from "../pages/Cliente/home/index";
+import ClienteContasPage from "../pages/Cliente/Contas/index";
+import ClienteAgendarPage from "../pages/Cliente/Agendar/index";
+import ClienteAgendamentosPage from "../pages/Cliente/Agendamentos/index";
+import ClienteNotificacoesPage from "../pages/Cliente/Notificacoes/index";
+import ClienteProdutosPage from "../pages/Cliente/Produtos/index";
+import ClientePedidosPage from "../pages/Cliente/Pedidos/index";
+import ClienteAvaliacoesPage from "../pages/Cliente/Avaliacoes/index";
+import ClientePerfilPage from "../pages/Cliente/Perfil/index";
+
+
+import ClienteLayout from "../layouts/ClienteLayout/ClienteLayout";
 import PainelLayout from "../layouts/PainelLayout/PainelLayout";
+
 
 import AuthCallbackPage from "../pages/AuthCallback/AuthCallbackPage";
 import CadastroBarbeariaPage from "../pages/Cadastro/CadastroBarbeariaPage";
@@ -84,64 +90,13 @@ export default function AppRoutes() {
           <Route index element={<ClienteHomePage />} />
 
           <Route path="agendar" element={<ClienteAgendarPage />} />
-
           <Route path="agendamentos" element={<ClienteAgendamentosPage />} />
-
-          <Route
-            path="produtos"
-            element={
-              <ClientePlaceholderPage
-                eyebrow="LOJA"
-                title="Produtos"
-                description="Veja os produtos disponíveis nas barbearias e escolha o que deseja comprar."
-                icon="🛍️"
-                nextStep="integrar o catálogo de produtos"
-              />
-            }
-          />
-
-          <Route
-            path="pedidos"
-            element={
-              <ClientePlaceholderPage
-                eyebrow="COMPRAS"
-                title="Meus pedidos"
-                description="Acompanhe o andamento e o histórico das suas compras."
-                icon="📦"
-                nextStep="integrar pedidos do cliente"
-              />
-            }
-          />
-
+          <Route path="produtos" element={<ClienteProdutosPage />} />
+          <Route path="pedidos" element={<ClientePedidosPage />} />
           <Route path="contas" element={<ClienteContasPage />} />
-
-          <Route
-            path="avaliacoes"
-            element={
-              <ClientePlaceholderPage
-                eyebrow="EXPERIÊNCIA"
-                title="Avaliações"
-                description="Avalie atendimentos concluídos e acompanhe respostas da barbearia."
-                icon="⭐"
-                nextStep="integrar avaliações do cliente"
-              />
-            }
-          />
-
+          <Route path="avaliacoes" element={<ClienteAvaliacoesPage />} />
           <Route path="notificacoes" element={<ClienteNotificacoesPage />} />
-
-          <Route
-            path="perfil"
-            element={
-              <ClientePlaceholderPage
-                eyebrow="MINHA CONTA"
-                title="Meu perfil"
-                description="Consulte e altere seus dados pessoais, senha e configurações da conta."
-                icon="👤"
-                nextStep="integrar perfil e segurança da conta"
-              />
-            }
-          />
+          <Route path="perfil" element={<ClientePerfilPage />} />
         </Route>
       </Route>
 

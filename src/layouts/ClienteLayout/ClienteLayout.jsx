@@ -64,6 +64,44 @@ export default function ClienteLayout() {
   const { profile, sair } = useAuth();
 
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [clientName, setClientName] = useState(profile?.nome || "Cliente");
+  const [clientPhotoUrl, setClientPhotoUrl] = useState("");
+
+
+
+  const loadClientVisualProfile = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc("obter_perfil_cliente");
+
+      if (error) {
+        throw error;
+      }
+
+      const client = Array.isArray(data) ? data[0] : data;
+
+      setClientName(client?.nome || profile?.nome || "Cliente");
+
+      if (client?.foto_path) {
+        const publicUrl = supabase.storage
+          .from("clientes")
+          .getPublicUrl(client.foto_path)
+          .data.publicUrl;
+
+        setClientPhotoUrl(publicUrl || "");
+      } else {
+        setClientPhotoUrl("");
+      }
+    } catch (error) {
+      console.warn(
+        "[BarberHub] Não foi possível carregar o visual do perfil do cliente:",
+        error,
+      );
+
+      if (profile?.nome) {
+        setClientName(profile.nome);
+      }
+    }
+  }, [profile?.nome]);
 
   const refreshUnreadNotifications = useCallback(async () => {
     try {
@@ -81,6 +119,41 @@ export default function ClienteLayout() {
     }
   }, []);
 
+
+
+  useEffect(() => {
+    loadClientVisualProfile();
+  }, [loadClientVisualProfile]);
+
+  useEffect(() => {
+    function onProfileChanged(event) {
+      const detail = event?.detail || {};
+
+      if (detail.nome) {
+        setClientName(detail.nome);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(detail, "fotoUrl")) {
+        setClientPhotoUrl(detail.fotoUrl || "");
+      } else {
+        loadClientVisualProfile();
+      }
+    }
+
+    window.addEventListener(
+      "barberhub:perfil-atualizado",
+      onProfileChanged,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "barberhub:perfil-atualizado",
+        onProfileChanged,
+      );
+    };
+  }, [loadClientVisualProfile]);
+
+
   useEffect(() => {
     refreshUnreadNotifications();
 
@@ -88,6 +161,7 @@ export default function ClienteLayout() {
 
     function onFocus() {
       refreshUnreadNotifications();
+      loadClientVisualProfile();
     }
 
     function onNotificationsChanged() {
@@ -111,7 +185,7 @@ export default function ClienteLayout() {
         onNotificationsChanged,
       );
     };
-  }, [refreshUnreadNotifications]);
+  }, [loadClientVisualProfile, refreshUnreadNotifications]);
 
   async function logout() {
     try {
@@ -142,12 +216,16 @@ export default function ClienteLayout() {
 
         <div className="client-user-card">
           <div className="client-avatar" aria-hidden="true">
-            {initials(profile?.nome)}
+            {clientPhotoUrl ? (
+              <img src={clientPhotoUrl} alt="" />
+            ) : (
+              initials(clientName)
+            )}
           </div>
 
           <div>
             <small>Olá</small>
-            <strong>{profile?.nome || "Cliente"}</strong>
+            <strong>{clientName || "Cliente"}</strong>
           </div>
         </div>
 
@@ -220,10 +298,16 @@ export default function ClienteLayout() {
             </NavLink>
 
             <NavLink to="/cliente/perfil" className="client-topbar-user">
-              <span>{initials(profile?.nome)}</span>
+              <span className="client-topbar-avatar">
+                {clientPhotoUrl ? (
+                  <img src={clientPhotoUrl} alt="" />
+                ) : (
+                  initials(clientName)
+                )}
+              </span>
 
               <div>
-                <strong>{profile?.nome || "Cliente"}</strong>
+                <strong>{clientName || "Cliente"}</strong>
                 <small>Minha conta</small>
               </div>
             </NavLink>
