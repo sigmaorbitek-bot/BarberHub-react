@@ -4,29 +4,120 @@ const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || "";
 
 function base64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+
   const rawData = window.atob(base64);
 
   return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
 }
 
-export function isIOS() {
-  const ua = navigator.userAgent || "";
-  const platform = navigator.platform || "";
-  const touchPoints = Number(navigator.maxTouchPoints || 0);
+function isIOS() {
+  const userAgent = navigator.userAgent || "";
 
+  const iOSNormal = /iPhone|iPad|iPod/i.test(userAgent);
+
+  const iPadDesktopMode =
+    navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+
+  return iOSNormal || iPadDesktopMode;
+}
+
+function isStandalone() {
   return (
-    /iPad|iPhone|iPod/i.test(ua) ||
-    (platform === "MacIntel" && touchPoints > 1)
+    window.matchMedia?.("(display-mode: standalone)")?.matches === true ||
+    window.navigator.standalone === true
   );
 }
 
-export function isStandaloneApp() {
-  return (
-    window.matchMedia?.("(display-mode: standalone)")?.matches === true ||
-    window.matchMedia?.("(display-mode: fullscreen)")?.matches === true ||
-    window.navigator.standalone === true
-  );
+function detectarNavegador() {
+  const userAgent = navigator.userAgent || "";
+
+  if (/Edg\//i.test(userAgent)) {
+    return "Microsoft Edge";
+  }
+
+  if (/OPR\//i.test(userAgent)) {
+    return "Opera";
+  }
+
+  if (/Chrome\//i.test(userAgent) && !/Edg\//i.test(userAgent)) {
+    return "Google Chrome";
+  }
+
+  if (/Safari\//i.test(userAgent) && !/Chrome\//i.test(userAgent)) {
+    return "Safari";
+  }
+
+  if (/Firefox\//i.test(userAgent)) {
+    return "Firefox";
+  }
+
+  return "Navegador";
+}
+
+function detectarPlataforma() {
+  const userAgent = navigator.userAgent || "";
+
+  if (/Android/i.test(userAgent)) {
+    return "Android";
+  }
+
+  if (isIOS()) {
+    return "iOS";
+  }
+
+  if (/Windows/i.test(userAgent)) {
+    return "Windows";
+  }
+
+  if (/Macintosh|Mac OS X/i.test(userAgent)) {
+    return "macOS";
+  }
+
+  if (/Linux/i.test(userAgent)) {
+    return "Linux";
+  }
+
+  return "Outro";
+}
+
+function detectarTipoDispositivo() {
+  const userAgent = navigator.userAgent || "";
+
+  if (/iPad|Tablet/i.test(userAgent)) {
+    return "Tablet";
+  }
+
+  if (/Android/i.test(userAgent) && !/Mobile/i.test(userAgent)) {
+    return "Tablet";
+  }
+
+  if (/Mobile|iPhone|Android/i.test(userAgent)) {
+    return "Celular";
+  }
+
+  return "Computador";
+}
+
+function obterNomeDispositivo() {
+  const navegador = detectarNavegador();
+
+  const plataforma = detectarPlataforma();
+
+  const tipo = detectarTipoDispositivo();
+
+  const pwa = isStandalone() ? " · PWA" : "";
+
+  return `${tipo} · ${navegador} · ${plataforma}${pwa}`;
+}
+
+function obterDadosDispositivo() {
+  return {
+    nome: obterNomeDispositivo(),
+    plataforma: detectarPlataforma(),
+    navegador: detectarNavegador(),
+  };
 }
 
 export function pushSupported() {
@@ -45,37 +136,14 @@ export function notificationPermission() {
   return Notification.permission;
 }
 
-function secureContextAvailable() {
-  if (window.isSecureContext) {
-    return true;
-  }
-
-  return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
-}
-
-export async function registerBarberHubServiceWorker() {
+export async function registerBarberSigServiceWorker() {
   if (!("serviceWorker" in navigator)) {
     throw new Error("Este navegador não suporta Service Worker.");
   }
 
-  if (!secureContextAvailable()) {
-    throw new Error("Notificações exigem HTTPS. Abra o BarberHub pelo endereço seguro.");
-  }
-
   const registration = await navigator.serviceWorker.register("/sw.js", {
     scope: "/",
-    updateViaCache: "none",
   });
-
-  try {
-    await registration.update();
-  } catch (error) {
-    console.warn("[BarberHub] Não foi possível verificar atualização do Service Worker:", error);
-  }
-
-  if (registration.waiting) {
-    registration.waiting.postMessage({ type: "SKIP_WAITING" });
-  }
 
   await navigator.serviceWorker.ready;
 
@@ -88,19 +156,33 @@ async function saveSubscription(subscription) {
   }
 
   const json = subscription.toJSON();
+
   const endpoint = subscription.endpoint;
+
   const p256dh = json.keys?.p256dh;
+
   const authKey = json.keys?.auth;
 
   if (!endpoint || !p256dh || !authKey) {
     throw new Error("A inscrição de notificações está incompleta.");
   }
 
-  const { error } = await supabase.rpc("salvar_push_subscription", {
+  const dispositivo = obterDadosDispositivo();
+
+  const { error } = await supabase.rpc("salvar_push_subscription_v2", {
     p_endpoint: endpoint,
+
     p_p256dh: p256dh,
+
     p_auth_key: authKey,
+
     p_user_agent: navigator.userAgent,
+
+    p_dispositivo_nome: dispositivo.nome,
+
+    p_plataforma: dispositivo.plataforma,
+
+    p_navegador: dispositivo.navegador,
   });
 
   if (error) {
@@ -115,58 +197,24 @@ export async function getCurrentPushSubscription() {
     return null;
   }
 
-  const registration = await registerBarberHubServiceWorker();
+  const registration = await registerBarberSigServiceWorker();
 
   return registration.pushManager.getSubscription();
 }
 
-export async function syncAppBadgeFromDatabase() {
-  if (!("setAppBadge" in navigator) && !("clearAppBadge" in navigator)) {
-    return;
-  }
-
-  try {
-    const { count, error } = await supabase
-      .from("notificacoes")
-      .select("id", { count: "exact", head: true })
-      .eq("lida", false);
-
-    if (error) {
-      throw error;
-    }
-
-    const unread = Math.max(0, Number(count || 0));
-
-    if (unread > 0 && "setAppBadge" in navigator) {
-      await navigator.setAppBadge(unread);
-    } else if ("clearAppBadge" in navigator) {
-      await navigator.clearAppBadge();
-    }
-  } catch (error) {
-    console.warn("[BarberHub] Não foi possível sincronizar o badge do app:", error);
-  }
-}
-
 export async function enableWebPush() {
-  const ios = isIOS();
-  const standalone = isStandaloneApp();
-
-  if (ios && !standalone) {
-    throw new Error(
-      "No iPhone/iPad, adicione o BarberHub à Tela de Início, abra pelo ícone e tente novamente.",
-    );
-  }
-
   if (!pushSupported()) {
-    throw new Error("Web Push não é suportado neste navegador ou dispositivo.");
-  }
-
-  if (!secureContextAvailable()) {
-    throw new Error("Notificações exigem HTTPS.");
+    throw new Error("Web Push não é suportado neste navegador.");
   }
 
   if (!VAPID_PUBLIC_KEY) {
     throw new Error("A chave pública VAPID não está configurada.");
+  }
+
+  if (isIOS() && !isStandalone()) {
+    throw new Error(
+      "No iPhone ou iPad, adicione o BarberSig à Tela de Início antes de ativar as notificações.",
+    );
   }
 
   let permission = Notification.permission;
@@ -177,7 +225,7 @@ export async function enableWebPush() {
 
   if (permission === "denied") {
     throw new Error(
-      "As notificações estão bloqueadas. Libere a permissão nas configurações do navegador ou do sistema.",
+      "As notificações estão bloqueadas neste dispositivo. Libere a permissão nas configurações do navegador.",
     );
   }
 
@@ -185,18 +233,19 @@ export async function enableWebPush() {
     throw new Error("A permissão de notificações não foi concedida.");
   }
 
-  const registration = await registerBarberHubServiceWorker();
+  const registration = await registerBarberSigServiceWorker();
+
   let subscription = await registration.pushManager.getSubscription();
 
   if (!subscription) {
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
+
       applicationServerKey: base64ToUint8Array(VAPID_PUBLIC_KEY),
     });
   }
 
   await saveSubscription(subscription);
-  await syncAppBadgeFromDatabase();
 
   return subscription;
 }
@@ -206,7 +255,8 @@ export async function disableWebPush() {
     return false;
   }
 
-  const registration = await registerBarberHubServiceWorker();
+  const registration = await registerBarberSigServiceWorker();
+
   const subscription = await registration.pushManager.getSubscription();
 
   if (!subscription) {
@@ -230,48 +280,198 @@ export async function disableWebPush() {
 
 export async function getWebPushStatus() {
   const ios = isIOS();
-  const standalone = isStandaloneApp();
-  const supported = pushSupported();
-  const permission = notificationPermission();
 
-  const base = {
-    ios,
-    standalone,
-    supported,
-    permission,
-    active: false,
-    subscribed: false,
-    subscription: null,
-    canActivate: supported && (!ios || standalone),
-  };
+  const standalone = isStandalone();
 
-  if (!supported || permission !== "granted") {
-    return base;
+  const dispositivo = obterDadosDispositivo();
+
+  if (!pushSupported()) {
+    return {
+      supported: false,
+
+      permission: "unsupported",
+
+      active: false,
+
+      subscribed: false,
+
+      subscription: null,
+
+      ios,
+
+      standalone,
+
+      device: dispositivo,
+    };
+  }
+
+  const permission = Notification.permission;
+
+  if (permission !== "granted") {
+    return {
+      supported: true,
+
+      permission,
+
+      active: false,
+
+      subscribed: false,
+
+      subscription: null,
+
+      ios,
+
+      standalone,
+
+      device: dispositivo,
+    };
   }
 
   try {
     const subscription = await getCurrentPushSubscription();
 
-    if (subscription) {
-      // Mantém o endpoint associado ao usuário que está logado agora.
-      await saveSubscription(subscription);
-    }
-
     const active = Boolean(subscription);
 
+    if (subscription) {
+      try {
+        await saveSubscription(subscription);
+      } catch (error) {
+        console.warn(
+          "[BarberSig] Não foi possível sincronizar a subscription:",
+          error,
+        );
+      }
+    }
+
     return {
-      ...base,
+      supported: true,
+
+      permission,
+
       active,
+
       subscribed: active,
+
       subscription: subscription || null,
+
+      ios,
+
+      standalone,
+
+      device: dispositivo,
     };
   } catch (error) {
-    console.warn("[BarberHub] Não foi possível verificar o Web Push:", error);
-    return base;
+    console.warn("[BarberSig] Não foi possível verificar o Web Push:", error);
+
+    return {
+      supported: true,
+
+      permission,
+
+      active: false,
+
+      subscribed: false,
+
+      subscription: null,
+
+      ios,
+
+      standalone,
+
+      device: dispositivo,
+    };
   }
 }
 
-/* Compatibilidade com componentes antigos */
+export async function listarMeusDispositivosPush() {
+  const { data, error } = await supabase.rpc("listar_meus_dispositivos_push");
+
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function syncAppBadgeFromDatabase() {
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      throw userError;
+    }
+
+    if (!user?.id) {
+      return 0;
+    }
+
+    const {
+      count,
+      error,
+    } = await supabase
+      .from("notificacoes")
+      .select("id", {
+        count: "exact",
+        head: true,
+      })
+      .eq(
+        "usuario_id",
+        user.id,
+      )
+      .eq(
+        "lida",
+        false,
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    const total =
+      Math.max(
+        0,
+        Number(count || 0),
+      );
+
+    try {
+      if (
+        total > 0 &&
+        "setAppBadge" in navigator
+      ) {
+        await navigator.setAppBadge(
+          total,
+        );
+      } else if (
+        total === 0 &&
+        "clearAppBadge" in navigator
+      ) {
+        await navigator.clearAppBadge();
+      }
+    } catch (badgeError) {
+      console.warn(
+        "[BarberSig] Não foi possível atualizar o badge do aplicativo:",
+        badgeError,
+      );
+    }
+
+    return total;
+  } catch (error) {
+    console.warn(
+      "[BarberSig] Não foi possível sincronizar o badge:",
+      error,
+    );
+
+    return 0;
+  }
+}
+
+/*
+ * Compatibilidade com componentes existentes.
+ */
+
 export async function ativarPush() {
   return enableWebPush();
 }
@@ -293,11 +493,15 @@ export async function obterPushSubscriptionAtual() {
 }
 
 export async function registrarServiceWorker() {
-  return registerBarberHubServiceWorker();
+  return registerBarberSigServiceWorker();
 }
 
 export async function registrarServiceWorkerPush() {
-  return registerBarberHubServiceWorker();
+  return registerBarberSigServiceWorker();
+}
+
+export async function registerBarberHubServiceWorker() {
+  return registerBarberSigServiceWorker();
 }
 
 export function suportaPush() {
@@ -306,4 +510,8 @@ export function suportaPush() {
 
 export function obterPermissaoPush() {
   return notificationPermission();
+}
+
+export function obterDadosDispositivoAtual() {
+  return obterDadosDispositivo();
 }
