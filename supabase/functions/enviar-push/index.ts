@@ -2,6 +2,7 @@ import webpush from "npm:web-push@3.6.7";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY") ?? "";
@@ -64,12 +65,17 @@ webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 const PREFERENCE_BY_TYPE: Record<string, string> = {
   novo_agendamento: "novo_agendamento",
+
   agendamento_cancelado: "agendamento_cancelado",
+
   agendamento_alterado: "agendamento_alterado",
+
   agendamento_confirmado: "agendamento_confirmado",
+
   lembrete_agendamento: "lembrete_agendamento",
 
   novo_pedido: "novo_pedido",
+
   pedido_atualizado: "pedido_atualizado",
 
   estoque_baixo: "estoque_baixo",
@@ -77,6 +83,7 @@ const PREFERENCE_BY_TYPE: Record<string, string> = {
   nova_avaliacao: "nova_avaliacao",
 
   conta_vencendo: "conta_vencendo",
+
   conta_vencida: "conta_vencida",
 
   pagamento_recebido: "pagamento_recebido",
@@ -85,6 +92,9 @@ const PREFERENCE_BY_TYPE: Record<string, string> = {
 function json(body: unknown, status = 200) {
   return Response.json(body, {
     status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+    },
   });
 }
 
@@ -104,7 +114,7 @@ function obterCorpoErroPush(error: any) {
       return new TextDecoder().decode(body);
     }
   } catch {
-    // Continua para a tentativa abaixo.
+    // Continua abaixo.
   }
 
   try {
@@ -128,6 +138,64 @@ function sanitizarHeaders(headers: unknown) {
   } catch {
     return null;
   }
+}
+
+function obterEndpointHost(endpoint: string) {
+  try {
+    return new URL(endpoint).host;
+  } catch {
+    return "invalid-endpoint";
+  }
+}
+
+async function registrarSucessoSubscription(subscriptionId: string) {
+  const agora = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .update({
+      last_success_at: agora,
+
+      updated_at: agora,
+
+      ativo: true,
+    })
+    .eq("id", subscriptionId);
+
+  if (error) {
+    console.error("[BarberSig] Falha ao registrar sucesso da subscription:", {
+      subscription_id: subscriptionId,
+
+      error,
+    });
+
+    return false;
+  }
+
+  return true;
+}
+
+async function desativarSubscription(subscriptionId: string) {
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .update({
+      ativo: false,
+
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", subscriptionId);
+
+  if (error) {
+    console.error("[BarberSig] Falha ao desativar subscription:", {
+      subscription_id: subscriptionId,
+
+      error,
+    });
+
+    return false;
+  }
+
+  return true;
 }
 
 Deno.serve(async (request) => {
@@ -165,7 +233,9 @@ Deno.serve(async (request) => {
 
       return json({
         ok: true,
+
         ignored: true,
+
         reason: "notification_without_recipient",
       });
     }
@@ -173,7 +243,11 @@ Deno.serve(async (request) => {
     const preferenceColumn = PREFERENCE_BY_TYPE[notification.tipo];
 
     if (preferenceColumn) {
-      const { data: preferences, error: preferencesError } = await supabase
+      const {
+        data: preferences,
+
+        error: preferencesError,
+      } = await supabase
         .from("preferencias_notificacoes")
         .select("*")
         .eq("usuario_id", notification.usuario_id)
@@ -186,21 +260,33 @@ Deno.serve(async (request) => {
       if (preferences && preferences[preferenceColumn] === false) {
         console.log("[BarberSig] Push ignorado por preferência do usuário:", {
           usuario_id: notification.usuario_id,
+
           tipo: notification.tipo,
         });
 
         return json({
           ok: true,
+
           sent: 0,
+
+          invalid: 0,
+
+          failed: 0,
+
           skipped: "preference_disabled",
         });
       }
     }
 
-    const { count: unreadCount, error: unreadError } = await supabase
+    const {
+      count: unreadCount,
+
+      error: unreadError,
+    } = await supabase
       .from("notificacoes")
       .select("id", {
         count: "exact",
+
         head: true,
       })
       .eq("usuario_id", notification.usuario_id)
@@ -210,9 +296,24 @@ Deno.serve(async (request) => {
       throw unreadError;
     }
 
-    const { data: subscriptions, error: subscriptionsError } = await supabase
+    const {
+      data: subscriptions,
+
+      error: subscriptionsError,
+    } = await supabase
       .from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth_key")
+      .select(
+        `
+          id,
+          endpoint,
+          p256dh,
+          auth_key,
+          dispositivo_nome,
+          plataforma,
+          navegador,
+          ativo
+        `,
+      )
       .eq("usuario_id", notification.usuario_id)
       .eq("ativo", true);
 
@@ -227,9 +328,13 @@ Deno.serve(async (request) => {
 
       return json({
         ok: true,
+
         sent: 0,
+
         invalid: 0,
+
         failed: 0,
+
         reason: "no_active_subscription",
       });
     }
@@ -255,8 +360,22 @@ Deno.serve(async (request) => {
     });
 
     let sent = 0;
+
     let invalid = 0;
+
     let failed = 0;
+
+    const resultados: Array<{
+      subscription_id: string;
+
+      dispositivo: string | null;
+
+      plataforma: string | null;
+
+      navegador: string | null;
+
+      status: string;
+    }> = [];
 
     for (const subscription of subscriptions) {
       try {
@@ -270,17 +389,42 @@ Deno.serve(async (request) => {
               auth: subscription.auth_key,
             },
           },
+
           pushPayload,
+
           {
             TTL: 60 * 60,
+
             urgency: "high",
           },
         );
 
         sent += 1;
 
+        await registrarSucessoSubscription(subscription.id);
+
+        resultados.push({
+          subscription_id: subscription.id,
+
+          dispositivo: subscription.dispositivo_nome || null,
+
+          plataforma: subscription.plataforma || null,
+
+          navegador: subscription.navegador || null,
+
+          status: "sent",
+        });
+
         console.log("[BarberSig] Push enviado:", {
           subscription_id: subscription.id,
+
+          dispositivo: subscription.dispositivo_nome || null,
+
+          plataforma: subscription.plataforma || null,
+
+          navegador: subscription.navegador || null,
+
+          endpoint_host: obterEndpointHost(subscription.endpoint),
 
           notificacao_id: notification.id,
         });
@@ -294,26 +438,26 @@ Deno.serve(async (request) => {
         if (statusCode === 404 || statusCode === 410) {
           invalid += 1;
 
-          const { error: deactivateError } = await supabase
-            .from("push_subscriptions")
-            .update({
-              ativo: false,
-            })
-            .eq("id", subscription.id);
+          await desativarSubscription(subscription.id);
 
-          if (deactivateError) {
-            console.error(
-              "[BarberSig] Falha ao desativar subscription inválida:",
-              {
-                subscription_id: subscription.id,
+          resultados.push({
+            subscription_id: subscription.id,
 
-                error: deactivateError,
-              },
-            );
-          }
+            dispositivo: subscription.dispositivo_nome || null,
+
+            plataforma: subscription.plataforma || null,
+
+            navegador: subscription.navegador || null,
+
+            status: "invalid",
+          });
 
           console.warn("[BarberSig] Subscription inválida desativada:", {
             subscription_id: subscription.id,
+
+            dispositivo: subscription.dispositivo_nome || null,
+
+            endpoint_host: obterEndpointHost(subscription.endpoint),
 
             statusCode,
 
@@ -322,16 +466,28 @@ Deno.serve(async (request) => {
         } else {
           failed += 1;
 
+          resultados.push({
+            subscription_id: subscription.id,
+
+            dispositivo: subscription.dispositivo_nome || null,
+
+            plataforma: subscription.plataforma || null,
+
+            navegador: subscription.navegador || null,
+
+            status: "failed",
+          });
+
           console.error("[BarberSig] Push failed:", {
             subscription_id: subscription.id,
 
-            endpoint_host: (() => {
-              try {
-                return new URL(subscription.endpoint).host;
-              } catch {
-                return "invalid-endpoint";
-              }
-            })(),
+            dispositivo: subscription.dispositivo_nome || null,
+
+            plataforma: subscription.plataforma || null,
+
+            navegador: subscription.navegador || null,
+
+            endpoint_host: obterEndpointHost(subscription.endpoint),
 
             statusCode,
 
@@ -362,25 +518,40 @@ Deno.serve(async (request) => {
       }
     }
 
+    const unread = Math.max(0, Number(unreadCount || 0));
+
     console.log("[BarberSig] Resultado do envio:", {
       notificacao_id: notification.id,
 
       usuario_id: notification.usuario_id,
 
+      subscriptions: subscriptions.length,
+
       sent,
+
       invalid,
+
       failed,
 
-      unread: Math.max(0, Number(unreadCount || 0)),
+      unread,
+
+      resultados,
     });
 
     return json({
       ok: true,
+
       sent,
+
       invalid,
+
       failed,
 
-      unread: Math.max(0, Number(unreadCount || 0)),
+      unread,
+
+      subscriptions: subscriptions.length,
+
+      resultados,
     });
   } catch (error) {
     console.error("[BarberSig] enviar-push:", error);

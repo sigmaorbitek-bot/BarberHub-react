@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../hooks/useAuth";
@@ -16,14 +17,6 @@ const MENU = [
   ["avaliacoes", "⭐", "Avaliações"],
   ["notificacoes", "🔔", "Notificações"],
   ["perfil", "👤", "Meu perfil"],
-];
-
-const MOBILE_MENU = [
-  ["", "⌂", "Início"],
-  ["agendar", "📅", "Agendar"],
-  ["agendamentos", "🗓️", "Agenda"],
-  ["notificacoes", "🔔", "Avisos"],
-  ["perfil", "👤", "Perfil"],
 ];
 
 function initials(name) {
@@ -61,13 +54,20 @@ function NotificationBadge({ count }) {
 
 export default function ClienteLayout() {
   const navigate = useNavigate();
+
   const { profile, sair } = useAuth();
 
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+
   const [clientName, setClientName] = useState(profile?.nome || "Cliente");
+
   const [clientPhotoUrl, setClientPhotoUrl] = useState("");
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const closeMobileMenu = useCallback(() => {
+    setMobileMenuOpen(false);
+  }, []);
 
   const loadClientVisualProfile = useCallback(async () => {
     try {
@@ -84,8 +84,7 @@ export default function ClienteLayout() {
       if (client?.foto_path) {
         const publicUrl = supabase.storage
           .from("clientes")
-          .getPublicUrl(client.foto_path)
-          .data.publicUrl;
+          .getPublicUrl(client.foto_path).data.publicUrl;
 
         setClientPhotoUrl(publicUrl || "");
       } else {
@@ -119,8 +118,6 @@ export default function ClienteLayout() {
     }
   }, []);
 
-
-
   useEffect(() => {
     loadClientVisualProfile();
   }, [loadClientVisualProfile]);
@@ -140,10 +137,7 @@ export default function ClienteLayout() {
       }
     }
 
-    window.addEventListener(
-      "barberhub:perfil-atualizado",
-      onProfileChanged,
-    );
+    window.addEventListener("barberhub:perfil-atualizado", onProfileChanged);
 
     return () => {
       window.removeEventListener(
@@ -152,7 +146,6 @@ export default function ClienteLayout() {
       );
     };
   }, [loadClientVisualProfile]);
-
 
   useEffect(() => {
     refreshUnreadNotifications();
@@ -187,9 +180,37 @@ export default function ClienteLayout() {
     };
   }, [loadClientVisualProfile, refreshUnreadNotifications]);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return undefined;
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        closeMobileMenu();
+      }
+    }
+
+    const previousOverflow = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [mobileMenuOpen, closeMobileMenu]);
+
   async function logout() {
+    closeMobileMenu();
+
     try {
       await sair();
+    } catch (error) {
+      console.error("[BarberHub] Erro ao sair da conta:", error);
     } finally {
       navigate("/login/cliente", {
         replace: true,
@@ -199,17 +220,44 @@ export default function ClienteLayout() {
 
   return (
     <div className="client-shell">
-      <aside className="client-sidebar">
+      {mobileMenuOpen ? (
+        <button
+          type="button"
+          className="client-sidebar-backdrop"
+          aria-label="Fechar menu"
+          onClick={closeMobileMenu}
+        />
+      ) : null}
+
+      <aside
+        className={[
+          "client-sidebar",
+          mobileMenuOpen ? "client-sidebar--mobile-open" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <button
+          type="button"
+          className="client-sidebar-close"
+          aria-label="Fechar menu"
+          onClick={closeMobileMenu}
+        >
+          ×
+        </button>
+
         <NavLink
           to="/cliente"
           end
           className="client-brand"
           aria-label="Início do BarberHub"
+          onClick={closeMobileMenu}
         >
           <img src="/barber.png" alt="" className="client-brand-logo" />
 
           <div>
             <strong>BarberHub</strong>
+
             <span>Área do cliente</span>
           </div>
         </NavLink>
@@ -225,6 +273,7 @@ export default function ClienteLayout() {
 
           <div>
             <small>Olá</small>
+
             <strong>{clientName || "Cliente"}</strong>
           </div>
         </div>
@@ -238,6 +287,7 @@ export default function ClienteLayout() {
                 key={path || "inicio"}
                 to={path ? `/cliente/${path}` : "/cliente"}
                 end={!path}
+                onClick={closeMobileMenu}
                 className={({ isActive }) =>
                   `client-menu-link${
                     isActive ? " client-menu-link--active" : ""
@@ -262,7 +312,7 @@ export default function ClienteLayout() {
 
         <div className="client-sidebar-footer">
           <button type="button" onClick={logout}>
-            ↪ Sair
+            🚪 Sair
           </button>
 
           <p>
@@ -274,10 +324,23 @@ export default function ClienteLayout() {
 
       <div className="client-main">
         <header className="client-topbar">
-          <NavLink to="/cliente" className="client-topbar-brand">
-            <img src="/barber.png" alt="" />
-            <strong>BarberHub</strong>
-          </NavLink>
+          <div className="client-topbar-left">
+            <button
+              type="button"
+              className="client-mobile-menu-button"
+              aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+              aria-expanded={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen((current) => !current)}
+            >
+              ☰
+            </button>
+
+            <NavLink to="/cliente" className="client-topbar-brand">
+              <img src="/barber.png" alt="" />
+
+              <strong>BarberHub</strong>
+            </NavLink>
+          </div>
 
           <div className="client-topbar-actions">
             <NavLink
@@ -308,6 +371,7 @@ export default function ClienteLayout() {
 
               <div>
                 <strong>{clientName || "Cliente"}</strong>
+
                 <small>Minha conta</small>
               </div>
             </NavLink>
@@ -318,38 +382,6 @@ export default function ClienteLayout() {
           <Outlet />
         </main>
       </div>
-
-      <nav
-        className="client-bottom-nav"
-        aria-label="Navegação rápida do cliente"
-      >
-        {MOBILE_MENU.map(([path, icon, label]) => {
-          const isNotifications = path === "notificacoes";
-
-          return (
-            <NavLink
-              key={path || "inicio"}
-              to={path ? `/cliente/${path}` : "/cliente"}
-              end={!path}
-              className={({ isActive }) =>
-                `client-bottom-link${
-                  isActive ? " client-bottom-link--active" : ""
-                }`
-              }
-            >
-              <span className="client-bottom-icon" aria-hidden="true">
-                {icon}
-
-                {isNotifications ? (
-                  <NotificationBadge count={unreadNotifications} />
-                ) : null}
-              </span>
-
-              <small>{label}</small>
-            </NavLink>
-          );
-        })}
-      </nav>
     </div>
   );
 }

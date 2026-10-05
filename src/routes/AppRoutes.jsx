@@ -1,7 +1,6 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
 import ProtectedRoute from "../components/ProtectedRoute/ProtectedRoute";
-
 
 import ClienteHomePage from "../pages/Cliente/home/index";
 import ClienteContasPage from "../pages/Cliente/Contas/index";
@@ -13,10 +12,8 @@ import ClientePedidosPage from "../pages/Cliente/Pedidos/index";
 import ClienteAvaliacoesPage from "../pages/Cliente/Avaliacoes/index";
 import ClientePerfilPage from "../pages/Cliente/Perfil/index";
 
-
 import ClienteLayout from "../layouts/ClienteLayout/ClienteLayout";
 import PainelLayout from "../layouts/PainelLayout/PainelLayout";
-
 
 import AuthCallbackPage from "../pages/AuthCallback/AuthCallbackPage";
 import CadastroBarbeariaPage from "../pages/Cadastro/CadastroBarbeariaPage";
@@ -52,6 +49,11 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/" element={<HomePage />} />
 
+      <Route
+        path="/login"
+        element={<Navigate to="/login/barbearia" replace />}
+      />
+
       <Route path="/login/:tipo" element={<LoginPage />} />
 
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
@@ -75,12 +77,19 @@ export default function AppRoutes() {
           <Route path="profissionais" element={<ProfissionaisPage />} />
 
           <Route path="horarios" element={<HorariosPage />} />
+
           <Route path="clientes" element={<ClientesPage />} />
+
           <Route path="produtos" element={<ProdutosPage />} />
+
           <Route path="pedidos" element={<PedidosPage />} />
+
           <Route path="financeiro" element={<FinanceiroPage />} />
+
           <Route path="avaliacoes" element={<AvaliacoesPage />} />
+
           <Route path="contas-receber" element={<ContasReceberPage />} />
+
           <Route path="configuracoes" element={<Configuracoes />} />
         </Route>
       </Route>
@@ -90,12 +99,19 @@ export default function AppRoutes() {
           <Route index element={<ClienteHomePage />} />
 
           <Route path="agendar" element={<ClienteAgendarPage />} />
+
           <Route path="agendamentos" element={<ClienteAgendamentosPage />} />
+
           <Route path="produtos" element={<ClienteProdutosPage />} />
+
           <Route path="pedidos" element={<ClientePedidosPage />} />
+
           <Route path="contas" element={<ClienteContasPage />} />
+
           <Route path="avaliacoes" element={<ClienteAvaliacoesPage />} />
+
           <Route path="notificacoes" element={<ClienteNotificacoesPage />} />
+
           <Route path="perfil" element={<ClientePerfilPage />} />
         </Route>
       </Route>

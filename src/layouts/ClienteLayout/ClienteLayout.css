@@ -1,44 +1,68 @@
 .client-shell {
   min-height: 100vh;
+
   background: #07090b;
+
   color: #f5f7fa;
 }
 
 .client-sidebar {
   position: fixed;
+  z-index: 60;
+
   inset: 0 auto 0 0;
-  z-index: 40;
-  width: 248px;
+
   display: flex;
+
+  width: 248px;
+
   flex-direction: column;
+
   border-right: 1px solid #20262e;
+
   background: #0b0f13;
+
   padding: 18px 12px;
+}
+
+.client-sidebar-backdrop {
+  display: none;
+}
+
+.client-sidebar-close {
+  display: none;
 }
 
 .client-brand,
 .client-topbar-brand,
 .client-topbar-user {
   color: inherit;
+
   text-decoration: none;
 }
 
 .client-brand {
   display: flex;
-  align-items: center;
-  gap: 11px;
+
   min-height: 58px;
+
+  align-items: center;
+
+  gap: 11px;
+
   padding: 6px 8px 17px;
 }
 
 .client-brand-logo {
   width: 44px;
   height: 44px;
+
   object-fit: contain;
 }
 
 .client-brand div {
   display: flex;
+
   flex-direction: column;
 }
 
@@ -48,85 +72,134 @@
 
 .client-brand span {
   margin-top: 2px;
+
   color: #7f8a9a;
+
   font-size: 0.68rem;
 }
 
 .client-user-card {
   display: flex;
+
   align-items: center;
+
   gap: 11px;
+
   margin: 4px 0 16px;
+
   border: 1px solid rgba(212, 175, 55, 0.2);
+
   border-radius: 14px;
+
   background: rgba(212, 175, 55, 0.035);
+
   padding: 12px;
 }
 
-.client-avatar,
-.client-topbar-user > span {
+.client-avatar {
   display: grid;
-  place-items: center;
+
+  width: 44px;
+  height: 44px;
+
   flex: 0 0 auto;
+
+  overflow: hidden;
+
+  place-items: center;
+
   border: 1px solid rgba(212, 175, 55, 0.46);
+
   border-radius: 50%;
+
   background: #11171d;
+
   color: #edca4f;
+
   font-weight: 800;
 }
 
-.client-avatar {
-  width: 44px;
-  height: 44px;
+.client-avatar img {
+  width: 100%;
+  height: 100%;
+
+  object-fit: cover;
 }
 
 .client-user-card div:last-child {
-  min-width: 0;
   display: flex;
+
+  min-width: 0;
+
   flex-direction: column;
 }
 
 .client-user-card small {
   color: #7f8a9a;
+
   font-size: 0.68rem;
 }
 
 .client-user-card strong {
   overflow: hidden;
+
   margin-top: 2px;
+
+  font-size: 0.84rem;
+
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.84rem;
 }
 
 .client-menu {
   display: grid;
+
   gap: 4px;
+
   overflow-y: auto;
+
   padding-right: 2px;
 }
 
 .client-menu-link {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) auto;
-  align-items: center;
+
   min-height: 46px;
+
+  grid-template-columns:
+    26px
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+
   border: 1px solid transparent;
+
   border-radius: 10px;
+
   padding: 0 10px;
+
   color: #aeb8c5;
+
   text-decoration: none;
-  transition: 0.18s ease;
+
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
 }
 
 .client-menu-link:hover {
   background: #11161c;
+
   color: #f3f5f8;
 }
 
 .client-menu-link--active {
   border-color: rgba(212, 175, 55, 0.28);
+
   background: rgba(212, 175, 55, 0.07);
+
   color: #edca4f;
 }
 
@@ -136,27 +209,47 @@
 
 .client-menu-link b {
   color: #687382;
+
   font-size: 1rem;
+}
+
+.client-menu-icon {
+  position: relative;
 }
 
 .client-sidebar-footer {
   margin-top: auto;
+
   border-top: 1px solid #1d242c;
+
   padding-top: 13px;
 }
 
 .client-sidebar-footer button {
   width: 100%;
   min-height: 44px;
+
   border: 0;
+
   border-radius: 9px;
+
   background: transparent;
+
+  padding: 0 10px;
+
   color: #fca5a5;
+
   text-align: left;
+
   font: inherit;
   font-size: 0.78rem;
   font-weight: 700;
+
   cursor: pointer;
+
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
 }
 
 .client-sidebar-footer button:hover {
@@ -165,9 +258,13 @@
 
 .client-sidebar-footer p {
   display: flex;
+
   flex-direction: column;
+
   margin: 12px 8px 0;
+
   color: #7c8797;
+
   font-size: 0.65rem;
   line-height: 1.5;
 }
@@ -178,6 +275,7 @@
 
 .client-main {
   min-height: 100vh;
+
   margin-left: 248px;
 }
 
@@ -185,15 +283,35 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  min-height: 72px;
+
   display: flex;
+
+  min-height: 72px;
+
   align-items: center;
   justify-content: flex-end;
+
   gap: 14px;
+
   border-bottom: 1px solid #20262e;
+
   background: rgba(7, 9, 11, 0.94);
+
   padding: 10px 28px;
+
   backdrop-filter: blur(14px);
+}
+
+.client-topbar-left {
+  display: flex;
+
+  align-items: center;
+
+  gap: 9px;
+}
+
+.client-mobile-menu-button {
+  display: none;
 }
 
 .client-topbar-brand {
@@ -202,175 +320,113 @@
 
 .client-topbar-actions {
   display: flex;
+
   align-items: center;
+
   gap: 9px;
 }
 
 .client-icon-button {
   display: grid;
+
   width: 46px;
   min-height: 46px;
+
   place-items: center;
+
   border: 1px solid #27303a;
+
   border-radius: 11px;
+
   background: #0f1419;
+
   color: #f6d456;
+
   text-decoration: none;
+}
+
+.client-icon-button--notifications {
+  position: relative;
 }
 
 .client-topbar-user {
   display: flex;
-  align-items: center;
-  gap: 9px;
+
   min-height: 48px;
+
+  align-items: center;
+
+  gap: 9px;
+
   border: 1px solid #27303a;
+
   border-radius: 12px;
+
   background: #0f1419;
+
   padding: 5px 10px 5px 6px;
 }
 
-.client-topbar-user > span {
+.client-topbar-avatar {
+  display: grid;
+
   width: 34px;
   height: 34px;
+
+  flex: 0 0 auto;
+
+  overflow: hidden;
+
+  place-items: center;
+
+  border: 1px solid rgba(212, 175, 55, 0.46);
+
+  border-radius: 50%;
+
+  background: #11171d;
+
+  color: #edca4f;
+
   font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.client-topbar-avatar img {
+  width: 100%;
+  height: 100%;
+
+  object-fit: cover;
 }
 
 .client-topbar-user div {
   display: flex;
+
   flex-direction: column;
 }
 
 .client-topbar-user strong {
   max-width: 170px;
+
   overflow: hidden;
+
+  font-size: 0.77rem;
+
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.77rem;
 }
 
 .client-topbar-user small {
   color: #778393;
+
   font-size: 0.62rem;
 }
 
 .client-content {
   width: min(1180px, calc(100% - 48px));
+
   margin: 0 auto;
+
   padding: 34px 0 80px;
-}
-
-.client-bottom-nav {
-  display: none;
-}
-
-@media (max-width: 900px) {
-  .client-sidebar {
-    display: none;
-  }
-
-  .client-main {
-    margin-left: 0;
-  }
-
-  .client-topbar {
-    justify-content: space-between;
-    min-height: 64px;
-    padding: 8px 16px;
-  }
-
-  .client-topbar-brand {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .client-topbar-brand img {
-    width: 36px;
-    height: 36px;
-    object-fit: contain;
-  }
-
-  .client-topbar-brand strong {
-    font-size: 0.9rem;
-  }
-
-  .client-topbar-user div {
-    display: none;
-  }
-
-  .client-topbar-user {
-    min-width: 46px;
-    padding: 5px;
-  }
-
-  .client-content {
-    width: min(100% - 28px, 760px);
-    padding: 24px 0 96px;
-  }
-
-  .client-bottom-nav {
-    position: fixed;
-    z-index: 50;
-    inset: auto 0 0;
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    border-top: 1px solid #222a33;
-    background: rgba(10, 14, 18, 0.97);
-    padding: 6px max(8px, env(safe-area-inset-right))
-      max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
-    backdrop-filter: blur(14px);
-  }
-
-  .client-bottom-link {
-    display: flex;
-    min-height: 55px;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    border-radius: 9px;
-    color: #8490a0;
-    text-decoration: none;
-  }
-
-  .client-bottom-link span {
-    font-size: 1rem;
-  }
-
-  .client-bottom-link small {
-    font-size: 0.59rem;
-    font-weight: 700;
-  }
-
-  .client-bottom-link--active {
-    background: rgba(212, 175, 55, 0.07);
-    color: #edca4f;
-  }
-}
-
-@media (max-width: 420px) {
-  .client-icon-button,
-  .client-topbar-user {
-    width: 42px;
-    min-width: 42px;
-    min-height: 42px;
-  }
-
-  .client-topbar-user > span {
-    width: 30px;
-    height: 30px;
-  }
-
-  .client-bottom-link small {
-    font-size: 0.54rem;
-  }
-}
-
-/* Contador de notificações do cliente */
-.client-icon-button--notifications,
-.client-menu-icon,
-.client-bottom-icon {
-  position: relative;
 }
 
 .client-notification-badge {
@@ -378,17 +434,21 @@
   z-index: 3;
 
   display: grid;
+
   min-width: 18px;
   height: 18px;
+
   place-items: center;
 
   border: 2px solid #0b0f13;
+
   border-radius: 999px;
 
   background: #ef4444;
-  color: #ffffff;
 
   padding: 0 4px;
+
+  color: #ffffff;
 
   font-size: 0.56rem;
   font-weight: 900;
@@ -405,14 +465,159 @@
   right: -11px;
 }
 
-.client-bottom-icon .client-notification-badge {
-  top: -8px;
-  right: -13px;
-
-  border-color: #0a0e12;
-}
-
 @media (max-width: 900px) {
+  .client-sidebar {
+    z-index: 100;
+
+    width: min(310px, calc(100vw - 52px));
+
+    max-width: 310px;
+
+    border-right: 1px solid #2b3540;
+
+    box-shadow: 24px 0 60px rgba(0, 0, 0, 0.58);
+
+    transform: translateX(-105%);
+
+    transition: transform 0.25s ease;
+  }
+
+  .client-sidebar--mobile-open {
+    transform: translateX(0);
+  }
+
+  .client-sidebar-backdrop {
+    position: fixed;
+    z-index: 90;
+
+    inset: 0;
+
+    display: block;
+
+    width: 100%;
+    height: 100%;
+
+    border: 0;
+
+    background: rgba(0, 0, 0, 0.72);
+
+    padding: 0;
+
+    cursor: pointer;
+
+    backdrop-filter: blur(3px);
+  }
+
+  .client-sidebar-close {
+    position: absolute;
+
+    top: 12px;
+    right: 10px;
+
+    display: grid;
+
+    width: 38px;
+    height: 38px;
+
+    place-items: center;
+
+    border: 1px solid #2e3944;
+
+    border-radius: 10px;
+
+    background: #10161c;
+
+    color: #dce4ec;
+
+    font: inherit;
+    font-size: 1.45rem;
+    line-height: 1;
+
+    cursor: pointer;
+  }
+
+  .client-brand {
+    padding-right: 46px;
+  }
+
+  .client-main {
+    margin-left: 0;
+  }
+
+  .client-topbar {
+    min-height: 64px;
+
+    justify-content: space-between;
+
+    padding: 8px 16px;
+  }
+
+  .client-mobile-menu-button {
+    display: grid;
+
+    width: 42px;
+    height: 42px;
+
+    flex: 0 0 42px;
+
+    place-items: center;
+
+    border: 1px solid #27303a;
+
+    border-radius: 10px;
+
+    background: #0f1419;
+
+    color: #f5f7fa;
+
+    font: inherit;
+    font-size: 1.15rem;
+
+    cursor: pointer;
+  }
+
+  .client-mobile-menu-button:hover,
+  .client-mobile-menu-button:active {
+    border-color: rgba(212, 175, 55, 0.42);
+
+    color: #edca4f;
+  }
+
+  .client-topbar-brand {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+  }
+
+  .client-topbar-brand img {
+    width: 36px;
+    height: 36px;
+
+    object-fit: contain;
+  }
+
+  .client-topbar-brand strong {
+    font-size: 0.9rem;
+  }
+
+  .client-topbar-user div {
+    display: none;
+  }
+
+  .client-topbar-user {
+    min-width: 46px;
+
+    padding: 5px;
+  }
+
+  .client-content {
+    width: min(calc(100% - 28px), 760px);
+
+    padding: 24px 0 max(32px, env(safe-area-inset-bottom));
+  }
+
   .client-notification-badge {
     min-width: 17px;
     height: 17px;
@@ -421,36 +626,72 @@
   }
 }
 
-/* Foto do cliente no sidebar e topbar */
-.client-avatar,
-.client-topbar-avatar {
-  overflow: hidden;
-}
+@media (max-width: 520px) {
+  .client-topbar {
+    padding: 8px max(10px, env(safe-area-inset-right)) 8px
+      max(10px, env(safe-area-inset-left));
+  }
 
-.client-avatar img,
-.client-topbar-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+  .client-topbar-left {
+    gap: 6px;
+  }
 
-.client-topbar-avatar {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid rgba(212, 175, 55, 0.46);
-  border-radius: 50%;
-  background: #11171d;
-  color: #edca4f;
-  font-size: 0.72rem;
-  font-weight: 800;
+  .client-topbar-brand strong {
+    max-width: 95px;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .client-topbar-actions {
+    gap: 6px;
+  }
 }
 
 @media (max-width: 420px) {
+  .client-mobile-menu-button,
+  .client-icon-button,
+  .client-topbar-user {
+    width: 42px;
+    min-width: 42px;
+    min-height: 42px;
+  }
+
   .client-topbar-avatar {
     width: 30px;
     height: 30px;
+  }
+
+  .client-topbar-brand img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .client-topbar-brand strong {
+    max-width: 76px;
+
+    font-size: 0.82rem;
+  }
+
+  .client-sidebar {
+    width: min(292px, calc(100vw - 38px));
+  }
+}
+
+@media (max-width: 360px) {
+  .client-topbar-brand strong {
+    display: none;
+  }
+
+  .client-sidebar {
+    width: min(280px, calc(100vw - 30px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .client-sidebar {
+    transition: none;
   }
 }
