@@ -1,0 +1,117 @@
+.professional-home-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.professional-home-stats article {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  min-height: 116px;
+  padding: 16px;
+  border: 1px solid var(--prof-border);
+  border-radius: 14px;
+  background: var(--prof-card);
+}
+
+.professional-home-stat-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--prof-border-gold);
+  border-radius: 11px;
+  background: var(--prof-elevated);
+}
+
+.professional-home-stats article > div:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.professional-home-stats small {
+  color: var(--prof-muted);
+  font-size: 0.52rem;
+  font-weight: 900;
+}
+
+.professional-home-stats strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 1.2rem;
+  text-overflow: ellipsis;
+}
+
+.professional-home-stats span {
+  color: var(--prof-muted);
+  font-size: 0.58rem;
+}
+
+.professional-home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 12px;
+}
+
+.professional-home-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.professional-home-actions button {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--prof-border);
+  border-radius: 11px;
+  background: var(--prof-elevated);
+  color: var(--prof-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.professional-home-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.professional-home-actions button > span {
+  font-size: 1.2rem;
+}
+
+.professional-home-actions button > div {
+  display: grid;
+  gap: 4px;
+}
+
+.professional-home-actions small,
+.professional-permission-list span {
+  color: var(--prof-muted);
+  font-size: 0.62rem;
+}
+
+.professional-permission-list {
+  display: grid;
+  gap: 9px;
+}
+
+@media (max-width: 1100px) {
+  .professional-home-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .professional-home-grid,
+  .professional-home-actions,
+  .professional-home-stats {
+    grid-template-columns: 1fr;
+  }
+}

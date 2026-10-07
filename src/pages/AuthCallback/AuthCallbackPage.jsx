@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import { Link, useSearchParams } from "react-router-dom";
 
 import { supabase } from "../../services/supabase";
@@ -25,9 +24,7 @@ function obterNomeUsuario(user) {
 
 export default function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
-
   const [status, setStatus] = useState("Concluindo seu acesso com Google...");
-
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
@@ -36,7 +33,6 @@ export default function AuthCallbackPage() {
     async function concluir() {
       try {
         const tipoUrl = searchParams.get("tipo");
-
         const tipoSalvo = localStorage.getItem(OAUTH_TYPE_KEY);
 
         const tipo = VALID_TYPES[tipoUrl]
@@ -104,7 +100,9 @@ export default function AuthCallbackPage() {
             ? "/painel"
             : "/cadastro/barbearia?oauth=google";
         } else if (resultado.tipo === "cliente") {
-          destino = "/cliente";
+          destino = resultado.cliente_id
+            ? "/cliente"
+            : "/cadastro/cliente?oauth=google";
         } else if (resultado.tipo === "profissional") {
           destino = "/profissional";
         }
@@ -114,7 +112,6 @@ export default function AuthCallbackPage() {
         }
 
         setStatus("Tudo certo. Abrindo o BarberHub...");
-
         window.location.replace(destino);
       } catch (error) {
         console.error("[BarberHub] Erro no callback do Google:", error);
@@ -123,10 +120,11 @@ export default function AuthCallbackPage() {
           return;
         }
 
+        localStorage.removeItem(OAUTH_TYPE_KEY);
+
         setErrorMessage(
           error?.message || "Não foi possível concluir o login com Google.",
         );
-
         setStatus("");
       }
     }
@@ -144,7 +142,6 @@ export default function AuthCallbackPage() {
         <img src="/barber.png" alt="BarberHub" className="auth-callback-logo" />
 
         <span className="auth-callback-eyebrow">ACESSO SEGURO</span>
-
         <h1>Login com Google</h1>
 
         {errorMessage ? (
@@ -163,14 +160,13 @@ export default function AuthCallbackPage() {
         ) : (
           <>
             <div className="auth-callback-spinner" aria-hidden="true" />
-
             <p className="auth-callback-status" role="status">
               {status}
             </p>
           </>
         )}
 
-        <small>BarberHub · Desenvolvido por Sigma Orbitek</small>
+        <small>BarberHub · Desenvolvido por AASORB — Soluções Digitais</small>
       </section>
     </main>
   );

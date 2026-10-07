@@ -185,6 +185,7 @@ export default function ProfissionaisPage() {
               email_acesso,
               primeiro_acesso_pendente,
               comissao_percentual,
+              removido_em,
               created_at
             `,
           )
@@ -192,6 +193,7 @@ export default function ProfissionaisPage() {
             "barbearia_id",
             barbeariaId,
           )
+          .is("removido_em", null)
           .order("ativo", {
             ascending: false,
           })
@@ -688,6 +690,72 @@ export default function ProfissionaisPage() {
       setMessage(
         error?.message ||
           "Não foi possível alterar o status.",
+      );
+    }
+  }
+
+  async function removerDaEquipe(
+    profissional,
+  ) {
+    if (profissional.usuario_id) {
+      setMessageType("error");
+      setMessage(
+        "Este profissional ainda possui uma conta vinculada. Remova a conta de acesso antes de excluí-lo da equipe.",
+      );
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `Excluir ${profissional.nome} da equipe?\n\nEle deixará de aparecer no painel e em novos agendamentos. O histórico de atendimentos será preservado.`,
+    );
+
+    if (!confirmar) {
+      return;
+    }
+
+    try {
+      setMessage("");
+
+      const { data, error } =
+        await supabase.functions.invoke(
+          "remover-profissional-equipe",
+          {
+            body: {
+              profissionalId:
+                profissional.id,
+              confirmacao:
+                "REMOVER PROFISSIONAL",
+            },
+          },
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.sucesso === false) {
+        throw new Error(
+          data?.erro ||
+            "Não foi possível excluir o profissional da equipe.",
+        );
+      }
+
+      setMessageType("success");
+      setMessage(
+        `${profissional.nome} foi removido da equipe. O histórico foi preservado.`,
+      );
+
+      await carregarProfissionais();
+    } catch (error) {
+      console.error(
+        "[BarberHub] Erro ao remover profissional da equipe:",
+        error,
+      );
+
+      setMessageType("error");
+      setMessage(
+        error?.message ||
+          "Não foi possível excluir o profissional da equipe.",
       );
     }
   }
@@ -1304,6 +1372,20 @@ export default function ProfissionaisPage() {
                       ? "Desativar"
                       : "Reativar"}
                   </button>
+
+                  {!profissional.usuario_id ? (
+                    <button
+                      type="button"
+                      className="professional-remove-button"
+                      onClick={() =>
+                        removerDaEquipe(
+                          profissional,
+                        )
+                      }
+                    >
+                      Excluir da equipe
+                    </button>
+                  ) : null}
                 </div>
               </article>
             ),

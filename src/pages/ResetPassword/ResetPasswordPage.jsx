@@ -1,16 +1,8 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import {
-  Link,
-  useNavigate,
-  useSearchParams,
-} from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { supabase } from "../../services/supabase";
-import "../Login/Login.css";
+import "./ResetPasswordPage.css";
 
 const PASSWORD_MIN_LENGTH = 6;
 
@@ -28,10 +20,7 @@ function traduzirErroSenha(error) {
     return "A nova senha precisa ser diferente da senha atual.";
   }
 
-  if (
-    texto.includes("session") ||
-    texto.includes("jwt")
-  ) {
+  if (texto.includes("session") || texto.includes("jwt")) {
     return "Sua sessão de recuperação expirou. Solicite um novo link.";
   }
 
@@ -53,17 +42,25 @@ export default function ResetPasswordPage() {
       return "/login/barbearia";
     }
 
+    if (tipo === "profissional") {
+      return "/login/profissional";
+    }
+
     return "/";
   }, [tipo]);
 
   const [password, setPassword] = useState("");
+
   const [confirmation, setConfirmation] = useState("");
 
   const [validating, setValidating] = useState(true);
+
   const [sessionValid, setSessionValid] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
 
   const [message, setMessage] = useState("");
+
   const [messageType, setMessageType] = useState("error");
 
   useEffect(() => {
@@ -86,25 +83,25 @@ export default function ResetPasswordPage() {
 
         if (!session?.user) {
           setSessionValid(false);
+
           setMessage(
             "O link de recuperação é inválido ou expirou. Solicite um novo link.",
           );
+
           setMessageType("error");
+
           return;
         }
 
         setSessionValid(true);
       } catch (error) {
-        console.error(
-          "[BarberHub] Erro ao validar recuperação:",
-          error,
-        );
+        console.error("[BarberHub] Erro ao validar recuperação:", error);
 
         if (active) {
           setSessionValid(false);
-          setMessage(
-            "Não foi possível validar o link de recuperação.",
-          );
+
+          setMessage("Não foi possível validar o link de recuperação.");
+
           setMessageType("error");
         }
       } finally {
@@ -128,7 +125,9 @@ export default function ResetPasswordPage() {
 
     if (!password) {
       setMessage("Digite sua nova senha.");
+
       setMessageType("error");
+
       return;
     }
 
@@ -136,19 +135,25 @@ export default function ResetPasswordPage() {
       setMessage(
         `A senha precisa ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres.`,
       );
+
       setMessageType("error");
+
       return;
     }
 
     if (!confirmation) {
       setMessage("Confirme sua nova senha.");
+
       setMessageType("error");
+
       return;
     }
 
     if (password !== confirmation) {
       setMessage("As senhas não são iguais.");
+
       setMessageType("error");
+
       return;
     }
 
@@ -156,6 +161,7 @@ export default function ResetPasswordPage() {
 
     try {
       setMessage("Alterando sua senha...");
+
       setMessageType("info");
 
       const {
@@ -185,6 +191,7 @@ export default function ResetPasswordPage() {
       setConfirmation("");
 
       setMessage("Senha alterada com sucesso!");
+
       setMessageType("success");
 
       await supabase.auth.signOut();
@@ -195,62 +202,53 @@ export default function ResetPasswordPage() {
         });
       }, 1200);
     } catch (error) {
-      console.error(
-        "[BarberHub] Erro ao alterar senha:",
-        error,
-      );
+      console.error("[BarberHub] Erro ao alterar senha:", error);
 
       setMessage(traduzirErroSenha(error));
+
       setMessageType("error");
     } finally {
       setSubmitting(false);
     }
   }
 
+  const bloqueado = validating || submitting || !sessionValid;
+
   return (
-    <main className="login-page">
-      <section className="login-container">
-        <div className="login-card">
-          <header className="login-header">
+    <main className="reset-password-page">
+      <section className="reset-password-container">
+        <div className="reset-password-card">
+          <header className="reset-password-header">
             <Link
               to="/"
-              className="login-logo-link"
+              className="reset-password-logo-link"
               aria-label="Voltar ao início do BarberHub"
             >
               <img
                 src="/barber.png"
                 alt="Logo do BarberHub"
-                className="login-logo"
+                className="reset-password-logo"
               />
             </Link>
 
-            <p className="login-eyebrow">
-              Segurança da conta
-            </p>
+            <p className="reset-password-eyebrow">Segurança da conta</p>
 
-            <h1 className="login-title">
-              Nova senha
-            </h1>
+            <h1 className="reset-password-title">Nova senha</h1>
 
-            <p className="login-subtitle">
+            <p className="reset-password-subtitle">
               Crie uma nova senha para sua conta
             </p>
           </header>
 
-          <div
-            className="login-divider"
-            aria-hidden="true"
-          />
+          <div className="reset-password-divider" aria-hidden="true" />
 
           <form
-            className="login-form"
+            className="reset-password-form"
             onSubmit={handleSubmit}
             noValidate
           >
-            <div className="login-field">
-              <label htmlFor="new-password">
-                Nova senha
-              </label>
+            <div className="reset-password-field">
+              <label htmlFor="new-password">Nova senha</label>
 
               <input
                 id="new-password"
@@ -259,21 +257,15 @@ export default function ResetPasswordPage() {
                 placeholder="Digite sua nova senha"
                 autoComplete="new-password"
                 minLength={PASSWORD_MIN_LENGTH}
-                disabled={
-                  validating ||
-                  submitting ||
-                  !sessionValid
-                }
-                onChange={(event) =>
-                  setPassword(event.target.value)
-                }
+                disabled={bloqueado}
+                onChange={(event) => setPassword(event.target.value)}
               />
+
+              <small>Use pelo menos {PASSWORD_MIN_LENGTH} caracteres.</small>
             </div>
 
-            <div className="login-field">
-              <label htmlFor="confirm-password">
-                Confirmar nova senha
-              </label>
+            <div className="reset-password-field">
+              <label htmlFor="confirm-password">Confirmar nova senha</label>
 
               <input
                 id="confirm-password"
@@ -282,26 +274,24 @@ export default function ResetPasswordPage() {
                 placeholder="Digite a senha novamente"
                 autoComplete="new-password"
                 minLength={PASSWORD_MIN_LENGTH}
-                disabled={
-                  validating ||
-                  submitting ||
-                  !sessionValid
-                }
-                onChange={(event) =>
-                  setConfirmation(event.target.value)
-                }
+                disabled={bloqueado}
+                onChange={(event) => setConfirmation(event.target.value)}
               />
             </div>
 
             {validating ? (
-              <div className="login-message login-message--info">
+              <div
+                className="reset-password-message reset-password-message--info"
+                role="status"
+                aria-live="polite"
+              >
                 Validando link de recuperação...
               </div>
             ) : null}
 
-            {message ? (
+            {!validating && message ? (
               <div
-                className={`login-message login-message--${messageType}`}
+                className={`reset-password-message reset-password-message--${messageType}`}
                 role="status"
                 aria-live="polite"
               >
@@ -311,28 +301,22 @@ export default function ResetPasswordPage() {
 
             <button
               type="submit"
-              className="login-primary-button"
-              disabled={
-                validating ||
-                submitting ||
-                !sessionValid
-              }
+              className="reset-password-primary-button"
+              disabled={bloqueado}
             >
-              {submitting
-                ? "Alterando senha..."
-                : "Alterar senha"}
+              {submitting ? "Alterando senha..." : "Alterar senha"}
             </button>
 
             <Link
-              className="login-secondary-button login-secondary-button--link"
+              className="reset-password-secondary-button"
               to={loginDestination}
             >
               ← Voltar para o login
             </Link>
           </form>
 
-          <p className="login-footer">
-            BarberHub · Desenvolvido por Sigma Orbitek
+          <p className="reset-password-footer">
+            BarberHub · Desenvolvido por AASORB — Soluções Digitais
           </p>
         </div>
       </section>

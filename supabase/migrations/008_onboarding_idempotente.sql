@@ -1,166 +1,161 @@
--- BarberHub React
--- Migration 008: onboarding idempotente
+-- BarberHub
+-- Migration 008: validação da estrutura de onboarding
 -- Executar após 007_onboarding.sql.
+--
+-- Esta migration não recria estruturas.
+-- Ela valida os contratos essenciais criados na 007.
+--
+-- Se qualquer requisito estiver ausente, a migration falha
+-- imediatamente para impedir que o restante do sistema seja
+-- instalado sobre uma base incompleta.
 
-alter table public.barbearias
-add column if not exists chave_criacao uuid;
-
-create unique index if not exists uq_barbearias_chave_criacao
-on public.barbearias (chave_criacao)
-where chave_criacao is not null;
-
-drop function if exists public.criar_barbearia_com_horarios(
-  text, text, text, text, time, time, integer[]
-);
-
-create or replace function public.criar_barbearia_com_horarios(
-  p_nome text,
-  p_cidade text,
-  p_endereco text default null,
-  p_telefone text default null,
-  p_horario_abertura time default null,
-  p_horario_fechamento time default null,
-  p_dias integer[] default '{}'::integer[],
-  p_chave_criacao uuid default null
-)
-returns public.barbearias
-language plpgsql
-security definer
-set search_path = public, auth
-as $$
-declare
-  v_barbearia public.barbearias%rowtype;
-  v_dias integer[] := coalesce(p_dias, '{}'::integer[]);
-  v_dias_texto text[];
-  v_chave uuid := coalesce(p_chave_criacao, gen_random_uuid());
+do $$
 begin
-  if auth.uid() is null then
-    raise exception 'Usuário não autenticado.';
-  end if;
+
+  -- =======================================================
+  -- 1. CHAVE DE IDEMPOTÊNCIA DA BARBEARIA
+  -- =======================================================
 
   if not exists (
     select 1
-    from public.profiles p
-    where p.id = auth.uid()
-      and p.tipo = 'dono'
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'barbearias'
+      and column_name = 'chave_criacao'
+      and data_type = 'uuid'
   ) then
-    raise exception 'A conta autenticada não é uma conta de barbearia.';
+    raise exception
+      'Migration 008: public.barbearias.chave_criacao não existe ou não é uuid.';
   end if;
 
-  if nullif(trim(p_nome), '') is null then
-    raise exception 'Digite o nome da barbearia.';
-  end if;
 
-  if nullif(trim(p_cidade), '') is null then
-    raise exception 'Digite a cidade.';
-  end if;
+  -- =======================================================
+  -- 2. ÍNDICE UNIQUE DA CHAVE
+  -- =======================================================
 
-  if exists (
+  if not exists (
     select 1
-    from unnest(v_dias) as d
-    where d < 0 or d > 6
+    from pg_indexes
+    where schemaname = 'public'
+      and tablename = 'barbearias'
+      and indexname = 'uq_barbearias_chave_criacao'
+      and indexdef ilike '%unique%'
   ) then
-    raise exception 'Dia de funcionamento inválido.';
+    raise exception
+      'Migration 008: índice único uq_barbearias_chave_criacao não encontrado.';
   end if;
 
-  select coalesce(array_agg(distinct d order by d), '{}'::integer[])
-  into v_dias
-  from unnest(v_dias) as d;
 
-  if cardinality(v_dias) > 0 then
-    if p_horario_abertura is null or p_horario_fechamento is null then
-      raise exception 'Informe os horários de abertura e fechamento.';
-    end if;
+  -- =======================================================
+  -- 3. RPC DE CRIAÇÃO DA BARBEARIA
+  -- =======================================================
+  --
+  -- Assinatura esperada:
+  --
+  -- p_nome
+  -- p_cidade
+  -- p_endereco
+  -- p_telefone
+  -- p_horario_abertura
+  -- p_horario_fechamento
+  -- p_dias
+  -- p_chave_criacao
+  -- p_nome_responsavel
 
-    if p_horario_abertura >= p_horario_fechamento then
-      raise exception 'O horário de fechamento precisa ser depois da abertura.';
-    end if;
-  elsif p_horario_abertura is not null or p_horario_fechamento is not null then
-    raise exception 'Selecione pelo menos um dia de funcionamento.';
+  if not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n
+      on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'criar_barbearia_com_horarios'
+      and p.pronargs = 9
+  ) then
+    raise exception
+      'Migration 008: RPC criar_barbearia_com_horarios com 9 parâmetros não encontrada.';
   end if;
 
-  select coalesce(
-    array_agg(
-      case d
-        when 0 then 'dom'
-        when 1 then 'seg'
-        when 2 then 'ter'
-        when 3 then 'qua'
-        when 4 then 'qui'
-        when 5 then 'sex'
-        when 6 then 'sab'
-      end
-      order by d
-    ),
-    '{}'::text[]
-  )
-  into v_dias_texto
-  from unnest(v_dias) as d;
 
-  insert into public.barbearias (
-    dono_id,
-    nome,
-    cidade,
-    endereco,
-    telefone,
-    horario_abertura,
-    horario_fechamento,
-    dias_funcionamento,
-    logo_url,
-    chave_criacao
-  )
-  values (
-    auth.uid(),
-    trim(p_nome),
-    trim(p_cidade),
-    nullif(trim(coalesce(p_endereco, '')), ''),
-    nullif(regexp_replace(coalesce(p_telefone, ''), '\D', '', 'g'), ''),
-    p_horario_abertura,
-    p_horario_fechamento,
-    v_dias_texto,
-    null,
-    v_chave
-  )
-  on conflict (chave_criacao)
-  where chave_criacao is not null
-  do update set
-    chave_criacao = excluded.chave_criacao
-  returning *
-  into v_barbearia;
+  -- =======================================================
+  -- 4. RPC DE FINALIZAÇÃO DO CLIENTE
+  -- =======================================================
+  --
+  -- Assinatura esperada:
+  --
+  -- p_nome
+  -- p_telefone
 
-  if v_barbearia.dono_id <> auth.uid() then
-    raise exception 'Chave de criação inválida para este usuário.';
+  if not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n
+      on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'finalizar_cadastro_cliente'
+      and p.pronargs = 2
+  ) then
+    raise exception
+      'Migration 008: RPC finalizar_cadastro_cliente com 2 parâmetros não encontrada.';
   end if;
 
-  insert into public.horarios_funcionamento (
-    barbearia_id,
-    dia_semana,
-    aberto,
-    hora_abertura,
-    hora_fechamento,
-    intervalo_inicio,
-    intervalo_fim
-  )
-  select
-    v_barbearia.id,
-    d,
-    d = any(v_dias),
-    p_horario_abertura,
-    p_horario_fechamento,
-    null,
-    null
-  from generate_series(0, 6) as d
-  on conflict (barbearia_id, dia_semana)
-  do nothing;
 
-  return v_barbearia;
-end;
+  -- =======================================================
+  -- 5. BUCKET DE LOGOS
+  -- =======================================================
+
+  if not exists (
+    select 1
+    from storage.buckets
+    where id = 'barbearias'
+      and public = true
+  ) then
+    raise exception
+      'Migration 008: bucket público barbearias não encontrado.';
+  end if;
+
+
+  -- =======================================================
+  -- 6. POLÍTICAS DE STORAGE
+  -- =======================================================
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname = 'barbearias_storage_insert_proprio'
+  ) then
+    raise exception
+      'Migration 008: policy de INSERT das logos não encontrada.';
+  end if;
+
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname = 'barbearias_storage_update_proprio'
+  ) then
+    raise exception
+      'Migration 008: policy de UPDATE das logos não encontrada.';
+  end if;
+
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname = 'barbearias_storage_delete_proprio'
+  ) then
+    raise exception
+      'Migration 008: policy de DELETE das logos não encontrada.';
+  end if;
+
+
+  raise notice
+    'Migration 008 concluída: onboarding do BarberHub validado com sucesso.';
+
+end
 $$;
-
-revoke all on function public.criar_barbearia_com_horarios(
-  text, text, text, text, time, time, integer[], uuid
-) from public;
-
-grant execute on function public.criar_barbearia_com_horarios(
-  text, text, text, text, time, time, integer[], uuid
-) to authenticated;

@@ -1,0 +1,226 @@
+.professional-account-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.professional-profile-card {
+  align-content: start;
+}
+
+.professional-profile-photo-area {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--prof-border);
+}
+
+.professional-profile-photo {
+  display: grid;
+  overflow: hidden;
+  width: 82px;
+  height: 82px;
+  flex: 0 0 82px;
+  place-items: center;
+  border: 1px solid var(--prof-border-gold);
+  border-radius: 50%;
+  background: var(--prof-elevated);
+  color: var(--prof-gold);
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.professional-profile-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.professional-profile-photo-info {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.professional-profile-photo-info h2 {
+  margin: 0;
+}
+
+.professional-profile-photo-info p {
+  margin: 0;
+  color: var(--prof-muted);
+  font-size: 0.62rem;
+}
+
+.professional-file-input {
+  display: none;
+}
+
+.professional-secondary-button {
+  width: fit-content;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid var(--prof-border-gold);
+  border-radius: 8px;
+  background: var(--prof-elevated);
+  color: var(--prof-gold);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.professional-secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.professional-account-details {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.professional-account-details div {
+  display: grid;
+  gap: 3px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--prof-border);
+}
+
+.professional-account-details dt {
+  color: var(--prof-muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.professional-account-details dd {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--prof-text);
+  font-size: 0.72rem;
+}
+
+.professional-account-form {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--prof-border);
+  border-radius: 14px;
+  background: var(--prof-card);
+}
+
+.professional-account-form label,
+.professional-danger-zone-action label {
+  display: grid;
+  gap: 6px;
+  color: var(--prof-secondary);
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.professional-danger-zone {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+  align-items: center;
+  gap: 24px;
+  padding: 20px;
+  border: 1px solid rgba(255, 114, 121, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 114, 121, 0.025);
+}
+
+.professional-danger-zone-copy {
+  display: grid;
+  gap: 7px;
+}
+
+.professional-danger-eyebrow {
+  color: var(--prof-danger);
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+}
+
+.professional-danger-zone h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.professional-danger-zone p {
+  max-width: 720px;
+  margin: 0;
+  color: var(--prof-muted);
+  font-size: 0.66rem;
+  line-height: 1.6;
+}
+
+.professional-danger-zone-action {
+  display: grid;
+  gap: 10px;
+}
+
+.professional-danger-zone-action input {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 114, 121, 0.25);
+  border-radius: 8px;
+  outline: 0;
+  background: var(--prof-elevated);
+  color: var(--prof-text);
+}
+
+.professional-danger-message {
+  padding: 10px;
+  border: 1px solid rgba(255, 114, 121, 0.25);
+  border-radius: 8px;
+  background: rgba(255, 114, 121, 0.04);
+  color: var(--prof-danger);
+  font-size: 0.63rem;
+}
+
+.professional-delete-account-button {
+  min-height: 40px;
+  border: 1px solid rgba(255, 114, 121, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 114, 121, 0.06);
+  color: var(--prof-danger);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 900;
+}
+
+.professional-delete-account-button:hover:not(:disabled) {
+  background: rgba(255, 114, 121, 0.1);
+}
+
+.professional-delete-account-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+@media (max-width: 900px) {
+  .professional-danger-zone {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .professional-account-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .professional-profile-photo-area {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .professional-profile-photo-area {
+    display: grid;
+  }
+}

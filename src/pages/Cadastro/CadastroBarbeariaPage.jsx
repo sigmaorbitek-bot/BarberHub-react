@@ -8,6 +8,7 @@ import "./Cadastro.css";
 const PENDING_KEY = "barberhub_cadastro_barbearia_pendente";
 const MAX_LOGO_SIZE = 5 * 1024 * 1024;
 const ALLOWED_LOGO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const SENHA_MINIMA = 6;
 
 const DAYS = [
   ["dom", "Domingo", 0],
@@ -20,6 +21,7 @@ const DAYS = [
 ];
 
 const EMPTY_FORM = {
+  responsavel: "",
   nome: "",
   telefone: "",
   cidade: "",
@@ -36,6 +38,15 @@ function normalizarTelefone(valor) {
   return String(valor || "")
     .replace(/\D/g, "")
     .trim();
+}
+
+function nomeDaConta(user) {
+  return String(
+    user?.user_metadata?.nome ||
+      user?.user_metadata?.full_name ||
+      user?.user_metadata?.name ||
+      "",
+  ).trim();
 }
 
 function traduzirErro(error) {
@@ -62,6 +73,13 @@ function traduzirErro(error) {
 
   if (texto.includes("rate limit") || texto.includes("too many")) {
     return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+  }
+
+  if (
+    texto.includes("outro tipo de acesso") ||
+    texto.includes("mudança de perfil")
+  ) {
+    return "Esta conta está vinculada a outro tipo de acesso. Use o fluxo de mudança de perfil.";
   }
 
   return error?.message || "Não foi possível realizar o cadastro.";
@@ -98,10 +116,15 @@ async function criarBarbearia(dados, requestId) {
     p_horario_fechamento: dados.horarioFechamento || null,
     p_dias: diasNumericos,
     p_chave_criacao: requestId,
+    p_nome_responsavel: dados.responsavel.trim(),
   });
 
   if (error) {
     throw error;
+  }
+
+  if (!data?.id) {
+    throw new Error("O Supabase não retornou a barbearia criada.");
   }
 
   return data;
@@ -113,7 +136,6 @@ async function enviarLogo({ usuarioId, barbeariaId, arquivo }) {
   }
 
   const extensao = arquivo.name.split(".").pop()?.toLowerCase() || "png";
-
   const caminho = `${usuarioId}/${barbeariaId}/logo-${crypto.randomUUID()}.${extensao}`;
 
   const { error: uploadError } = await supabase.storage
@@ -128,7 +150,6 @@ async function enviarLogo({ usuarioId, barbeariaId, arquivo }) {
   }
 
   const { data } = supabase.storage.from("barbearias").getPublicUrl(caminho);
-
   const logoUrl = data?.publicUrl || null;
 
   if (!logoUrl) {
@@ -137,9 +158,7 @@ async function enviarLogo({ usuarioId, barbeariaId, arquivo }) {
 
   const { error: updateError } = await supabase
     .from("barbearias")
-    .update({
-      logo_url: logoUrl,
-    })
+    .update({ logo_url: logoUrl })
     .eq("id", barbeariaId)
     .eq("dono_id", usuarioId);
 
@@ -153,11 +172,9 @@ async function enviarLogo({ usuarioId, barbeariaId, arquivo }) {
 export default function CadastroBarbeariaPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
   const { user, profile, authenticated, loading: authLoading } = useAuth();
 
   const modoNovaBarbearia = searchParams.get("modo") === "nova-barbearia";
-
   const pending = useMemo(() => lerPendente(), []);
 
   const [form, setForm] = useState(() => ({
@@ -166,30 +183,45 @@ export default function CadastroBarbeariaPage() {
   }));
 
   const requestIdRef = useRef(pending?.requestId || crypto.randomUUID());
-
   const [logo, setLogo] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(
     pending
-      ? "Sua conta foi confirmada. Confira os dados, selecione a logo novamente se desejar e conclua o cadastro."
+      ? "Sua conta foi confirmada. Confira os dados e conclua o cadastro."
       : "",
   );
   const [messageType, setMessageType] = useState(pending ? "info" : "error");
 
-  const contaExistente = authenticated && profile?.tipo === "dono";
-
-  const aguardandoConfirmacao = Boolean(pending) && !contaExistente;
+  const usuarioAutenticado = authenticated && Boolean(user?.id);
+  const contaDono = usuarioAutenticado && profile?.tipo === "dono";
+  const onboardingGoogle = usuarioAutenticado && !profile;
+  const contaCompativel = contaDono || onboardingGoogle;
+  const perfilIncompativel =
+    usuarioAutenticado && Boolean(profile) && profile?.tipo !== "dono";
+  const aguardandoConfirmacao = Boolean(pending) && !usuarioAutenticado;
 
   useEffect(() => {
-    if (authLoading) {
+    if (authLoading || !usuarioAutenticado) {
       return;
     }
 
-    if (pending && authenticated && profile?.tipo !== "dono") {
-      setMessage("A conta autenticada não é uma conta de barbearia.");
-      setMessageType("error");
+    setForm((atual) => ({
+      ...atual,
+      responsavel: atual.responsavel || profile?.nome || nomeDaConta(user),
+      email: user?.email || atual.email,
+    }));
+  }, [authLoading, usuarioAutenticado, profile?.nome, user]);
+
+  useEffect(() => {
+    if (authLoading || !perfilIncompativel) {
+      return;
     }
-  }, [authLoading, authenticated, profile?.tipo, pending]);
+
+    setMessage(
+      "Esta conta está vinculada a outro tipo de acesso. Use o fluxo de mudança de perfil antes de cadastrar uma barbearia.",
+    );
+    setMessageType("error");
+  }, [authLoading, perfilIncompativel]);
 
   function mostrarMensagem(texto, tipo = "error") {
     setMessage(texto);
@@ -214,7 +246,11 @@ export default function CadastroBarbeariaPage() {
     }));
   }
 
-  function validar(dados, contaJaAutenticada) {
+  function validar(dados) {
+    if (!dados.responsavel.trim()) {
+      return "Digite o nome do responsável.";
+    }
+
     if (!dados.nome.trim()) {
       return "Digite o nome da barbearia.";
     }
@@ -223,7 +259,7 @@ export default function CadastroBarbeariaPage() {
       return "Digite a cidade.";
     }
 
-    if (!contaJaAutenticada) {
+    if (!usuarioAutenticado) {
       if (!dados.email.trim()) {
         return "Digite o e-mail.";
       }
@@ -232,8 +268,8 @@ export default function CadastroBarbeariaPage() {
         return "Digite uma senha.";
       }
 
-      if (dados.senha.length < 6) {
-        return "A senha precisa ter pelo menos 6 caracteres.";
+      if (dados.senha.length < SENHA_MINIMA) {
+        return `A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`;
       }
 
       if (dados.senha !== dados.confirmarSenha) {
@@ -278,7 +314,6 @@ export default function CadastroBarbeariaPage() {
 
   async function finalizarCadastro(usuarioId) {
     const barbearia = await criarBarbearia(form, requestIdRef.current);
-
     let logoFalhou = false;
 
     if (logo) {
@@ -290,7 +325,6 @@ export default function CadastroBarbeariaPage() {
         });
       } catch (error) {
         logoFalhou = true;
-
         console.warn("[BarberHub] Barbearia criada, mas a logo falhou:", error);
       }
     }
@@ -304,21 +338,31 @@ export default function CadastroBarbeariaPage() {
       "success",
     );
 
-    navigate(`/painel/${barbearia.id}`, {
-      replace: true,
-    });
+    navigate(`/painel/${barbearia.id}`, { replace: true });
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     setMessage("");
 
+    if (authLoading) {
+      mostrarMensagem("Aguarde enquanto verificamos sua conta.", "info");
+      return;
+    }
+
+    if (perfilIncompativel) {
+      mostrarMensagem(
+        "Esta conta está vinculada a outro tipo de acesso. Use o fluxo de mudança de perfil.",
+      );
+      return;
+    }
+
     if (aguardandoConfirmacao) {
       mostrarMensagem("Confirme seu e-mail antes de concluir o cadastro.");
       return;
     }
 
-    const erroValidacao = validar(form, contaExistente);
+    const erroValidacao = validar(form);
 
     if (erroValidacao) {
       mostrarMensagem(erroValidacao);
@@ -328,7 +372,7 @@ export default function CadastroBarbeariaPage() {
     setSubmitting(true);
 
     try {
-      if (contaExistente) {
+      if (contaCompativel) {
         await finalizarCadastro(user.id);
         return;
       }
@@ -336,10 +380,10 @@ export default function CadastroBarbeariaPage() {
       mostrarMensagem("Criando sua conta...", "info");
 
       const email = form.email.trim().toLowerCase();
-
       const dadosPendentes = {
         requestId: requestIdRef.current,
         dados: {
+          responsavel: form.responsavel.trim(),
           nome: form.nome.trim(),
           telefone: normalizarTelefone(form.telefone),
           cidade: form.cidade.trim(),
@@ -356,8 +400,7 @@ export default function CadastroBarbeariaPage() {
         options: {
           emailRedirectTo: `${window.location.origin}/cadastro/barbearia`,
           data: {
-            nome: form.nome.trim(),
-            telefone: normalizarTelefone(form.telefone) || null,
+            nome: form.responsavel.trim(),
             tipo: "dono",
           },
         },
@@ -373,18 +416,16 @@ export default function CadastroBarbeariaPage() {
 
       if (!data.session) {
         salvarPendente(dadosPendentes);
-
-        setMessage(
-          "Conta criada! Confirme seu e-mail. Depois volte para esta página, selecione a logo novamente e conclua o cadastro.",
+        mostrarMensagem(
+          "Conta criada! Confirme seu e-mail. Depois volte para concluir a criação da barbearia.",
+          "success",
         );
-        setMessageType("success");
         return;
       }
 
       await finalizarCadastro(data.user.id);
     } catch (error) {
       console.error("[BarberHub] Erro no cadastro da barbearia:", error);
-
       mostrarMensagem(traduzirErro(error));
     } finally {
       setSubmitting(false);
@@ -427,13 +468,58 @@ export default function CadastroBarbeariaPage() {
 
           <form className="cadastro-form" onSubmit={handleSubmit} noValidate>
             <div className="cadastro-section-heading">
+              <h2>Responsável</h2>
+              <p>Dados da pessoa responsável pela conta da barbearia.</p>
+            </div>
+
+            <div className="cadastro-grid cadastro-grid--two">
+              <div className="cadastro-field">
+                <label htmlFor="barbearia-responsavel">
+                  Nome do responsável *
+                </label>
+                <input
+                  id="barbearia-responsavel"
+                  name="responsavel"
+                  type="text"
+                  value={form.responsavel}
+                  onChange={alterarCampo}
+                  placeholder="Ex.: André Alves"
+                  autoComplete="name"
+                  maxLength={120}
+                  disabled={submitting || contaDono}
+                />
+              </div>
+
+              <div className="cadastro-field">
+                <label htmlFor="barbearia-email">E-mail *</label>
+                <input
+                  id="barbearia-email"
+                  name="email"
+                  type="email"
+                  value={usuarioAutenticado ? user?.email || "" : form.email}
+                  onChange={alterarCampo}
+                  placeholder="barbearia@email.com"
+                  autoComplete="email"
+                  inputMode="email"
+                  maxLength={254}
+                  readOnly={usuarioAutenticado}
+                  disabled={submitting}
+                />
+                {usuarioAutenticado ? (
+                  <small>E-mail confirmado pela conta autenticada.</small>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="cadastro-divider" />
+
+            <div className="cadastro-section-heading">
               <h2>Dados da barbearia</h2>
               <p>Essas informações serão exibidas para os clientes.</p>
             </div>
 
             <div className="cadastro-field">
               <label htmlFor="barbearia-logo">Logo da barbearia</label>
-
               <input
                 id="barbearia-logo"
                 type="file"
@@ -441,7 +527,6 @@ export default function CadastroBarbeariaPage() {
                 disabled={submitting}
                 onChange={(event) => setLogo(event.target.files?.[0] || null)}
               />
-
               <small>
                 JPG, PNG ou WEBP. Tamanho máximo de 5 MB.
                 {pending
@@ -551,7 +636,6 @@ export default function CadastroBarbeariaPage() {
 
             <div className="cadastro-field">
               <label>Dias de funcionamento</label>
-
               <div className="cadastro-days">
                 {DAYS.map(([sigla, label]) => {
                   const selecionado = form.dias.includes(sigla);
@@ -576,29 +660,13 @@ export default function CadastroBarbeariaPage() {
               </div>
             </div>
 
-            {!contaExistente && !pending ? (
+            {!usuarioAutenticado && !pending ? (
               <>
                 <div className="cadastro-divider" />
 
                 <div className="cadastro-section-heading">
-                  <h2>Dados da conta</h2>
-                  <p>Esses dados serão usados para acessar o painel.</p>
-                </div>
-
-                <div className="cadastro-field">
-                  <label htmlFor="barbearia-email">E-mail *</label>
-                  <input
-                    id="barbearia-email"
-                    name="email"
-                    type="email"
-                    value={form.email}
-                    onChange={alterarCampo}
-                    placeholder="barbearia@email.com"
-                    autoComplete="email"
-                    inputMode="email"
-                    maxLength={254}
-                    disabled={submitting}
-                  />
+                  <h2>Senha da conta</h2>
+                  <p>Crie uma senha para acessar o painel.</p>
                 </div>
 
                 <div className="cadastro-grid cadastro-grid--two">
@@ -610,7 +678,7 @@ export default function CadastroBarbeariaPage() {
                       type="password"
                       value={form.senha}
                       onChange={alterarCampo}
-                      placeholder="Mínimo de 6 caracteres"
+                      placeholder={`Mínimo de ${SENHA_MINIMA} caracteres`}
                       autoComplete="new-password"
                       disabled={submitting}
                     />
@@ -635,10 +703,10 @@ export default function CadastroBarbeariaPage() {
               </>
             ) : (
               <div className="cadastro-account-connected">
-                <strong>🔐 Conta já conectada</strong>
+                <strong>🔐 Conta conectada</strong>
                 <p>
-                  Esta barbearia será vinculada automaticamente à sua conta
-                  atual.
+                  A barbearia será vinculada automaticamente à conta
+                  autenticada.
                 </p>
               </div>
             )}
@@ -656,17 +724,21 @@ export default function CadastroBarbeariaPage() {
             <button
               type="submit"
               className="cadastro-primary-button"
-              disabled={submitting || aguardandoConfirmacao}
+              disabled={
+                submitting || aguardandoConfirmacao || perfilIncompativel
+              }
             >
               {submitting
                 ? "Processando..."
-                : pending
+                : pending || onboardingGoogle
                   ? "Concluir cadastro"
-                  : "+ Cadastrar barbearia"}
+                  : modoNovaBarbearia
+                    ? "+ Cadastrar nova barbearia"
+                    : "+ Cadastrar barbearia"}
             </button>
 
             <Link
-              to={contaExistente ? "/painel" : "/login/barbearia"}
+              to={contaDono ? "/painel" : "/login/barbearia"}
               className="cadastro-secondary-button"
             >
               ← Voltar
@@ -674,7 +746,7 @@ export default function CadastroBarbeariaPage() {
           </form>
 
           <p className="cadastro-footer">
-            BarberHub · Desenvolvido por Sigma Orbitek
+            BarberHub · Desenvolvido por AASORB — Soluções Digitais
           </p>
         </div>
       </section>

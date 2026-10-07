@@ -1,5 +1,4 @@
 import { useState } from "react";
-
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../hooks/useAuth";
@@ -19,20 +18,15 @@ function iniciais(nome) {
 
 function LayoutInterno() {
   const { contexto, loading, error } = useProfissional();
-
   const { sair } = useAuth();
-
   const navigate = useNavigate();
-
   const [menuAberto, setMenuAberto] = useState(false);
 
   if (loading) {
     return (
       <main className="professional-layout-loading">
         <img src="/barber.png" alt="BarberHub" />
-
         <strong>BarberHub</strong>
-
         <span>Carregando painel profissional...</span>
       </main>
     );
@@ -42,65 +36,43 @@ function LayoutInterno() {
     return (
       <main className="professional-layout-loading">
         <strong>Não foi possível carregar seu painel.</strong>
-
         <span>{error || "Vínculo profissional não encontrado."}</span>
       </main>
     );
   }
 
   const foto = contexto.profissional_foto_url;
-
   const logoBarbearia = contexto.barbearia_logo_url;
 
-  const itens = [
+  const grupos = [
     {
-      grupo: "GESTÃO",
+      titulo: "GESTÃO",
       itens: [
-        {
-          to: "/profissional",
-          label: "Visão geral",
-          icon: "📊",
-          end: true,
-          visible: true,
-        },
-        {
-          to: "/profissional/agenda",
-          label: "Meus agendamentos",
-          icon: "📅",
-          visible: contexto.ver_agendamentos,
-        },
+        { to: "/profissional", label: "Visão geral", icon: "📊", end: true, visible: true },
+        { to: "/profissional/agenda", label: "Minha agenda", icon: "📅", visible: contexto.ver_agendamentos },
+        { to: "/profissional/equipe", label: "Agenda da equipe", icon: "👥", visible: contexto.ver_agenda_equipe },
+        { to: "/profissional/clientes", label: "Clientes", icon: "🧑‍🤝‍🧑", visible: contexto.ver_clientes },
+        { to: "/profissional/produtos", label: "Produtos", icon: "🛍️", visible: contexto.ver_produtos },
       ],
     },
     {
-      grupo: "RESULTADOS",
+      titulo: "RESULTADOS",
       itens: [
-        {
-          to: "/profissional/financeiro",
-          label: "Meu financeiro",
-          icon: "💰",
-          visible: contexto.ver_financeiro,
-        },
+        { to: "/profissional/financeiro", label: "Meu financeiro", icon: "💰", visible: contexto.ver_financeiro },
       ],
     },
     {
-      grupo: "SISTEMA",
+      titulo: "SISTEMA",
       itens: [
-        {
-          to: "/profissional/minha-conta",
-          label: "Minha conta",
-          icon: "⚙️",
-          visible: true,
-        },
+        { to: "/profissional/notificacoes", label: "Notificações", icon: "🔔", visible: true },
+        { to: "/profissional/minha-conta", label: "Minha conta", icon: "⚙️", visible: true },
       ],
     },
   ];
 
   async function handleSair() {
     await sair();
-
-    navigate("/login/profissional", {
-      replace: true,
-    });
+    navigate("/login/profissional", { replace: true });
   }
 
   return (
@@ -123,7 +95,6 @@ function LayoutInterno() {
 
           <div>
             <strong>{contexto.profissional_nome}</strong>
-
             <span>Profissional</span>
           </div>
         </div>
@@ -131,10 +102,7 @@ function LayoutInterno() {
         <div className="professional-current-unit">
           <div className="professional-current-unit-avatar">
             {logoBarbearia ? (
-              <img
-                src={logoBarbearia}
-                alt={`Logo de ${contexto.barbearia_nome}`}
-              />
+              <img src={logoBarbearia} alt={`Logo de ${contexto.barbearia_nome}`} />
             ) : (
               <span>{iniciais(contexto.barbearia_nome)}</span>
             )}
@@ -142,28 +110,24 @@ function LayoutInterno() {
 
           <div>
             <small>UNIDADE ATUAL</small>
-
             <strong>{contexto.barbearia_nome}</strong>
-
             <span>Área profissional</span>
           </div>
         </div>
 
-        <nav className="professional-sidebar-nav">
-          {itens.map((grupo) => {
-            const visiveis = grupo.itens.filter((item) => item.visible);
+        <nav className="professional-sidebar-nav" aria-label="Menu profissional">
+          {grupos.map((grupo) => {
+            const itensVisiveis = grupo.itens.filter((item) => item.visible);
 
-            if (!visiveis.length) {
+            if (!itensVisiveis.length) {
               return null;
             }
 
             return (
-              <section key={grupo.grupo} className="professional-sidebar-group">
-                <span className="professional-sidebar-group-title">
-                  {grupo.grupo}
-                </span>
+              <section key={grupo.titulo} className="professional-sidebar-group">
+                <span className="professional-sidebar-group-title">{grupo.titulo}</span>
 
-                {visiveis.map((item) => (
+                {itensVisiveis.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
@@ -175,11 +139,9 @@ function LayoutInterno() {
                         : "professional-menu-item"
                     }
                   >
-                    <span>{item.icon}</span>
-
+                    <span aria-hidden="true">{item.icon}</span>
                     <strong>{item.label}</strong>
-
-                    <span className="professional-menu-arrow">›</span>
+                    <span className="professional-menu-arrow" aria-hidden="true">›</span>
                   </NavLink>
                 ))}
               </section>
@@ -188,13 +150,9 @@ function LayoutInterno() {
         </nav>
 
         <div className="professional-sidebar-footer">
-          <span>Desenvolvido por</span>
-
-          <strong>Sigma Orbitek</strong>
-
-          <button type="button" onClick={handleSair}>
-            🚪 Sair
-          </button>
+          <span>BarberHub</span>
+          <strong>Área profissional</strong>
+          <button type="button" onClick={handleSair}>🚪 Sair</button>
         </div>
       </aside>
 
@@ -221,9 +179,7 @@ function LayoutInterno() {
 
             <div>
               <small>PAINEL PROFISSIONAL</small>
-
               <strong>{contexto.barbearia_nome}</strong>
-
               <span>· {contexto.profissional_nome}</span>
             </div>
           </div>
@@ -232,29 +188,30 @@ function LayoutInterno() {
             <button
               type="button"
               className="professional-header-notification"
-              aria-label="Notificações"
+              aria-label="Abrir notificações"
+              onClick={() => navigate("/profissional/notificacoes")}
             >
               🔔
             </button>
 
-            <div className="professional-header-profile">
+            <button
+              type="button"
+              className="professional-header-profile"
+              onClick={() => navigate("/profissional/minha-conta")}
+            >
               <div>
                 <strong>{contexto.profissional_nome}</strong>
-
                 <span>{contexto.barbearia_nome}</span>
               </div>
 
               <div className="professional-header-avatar">
                 {foto ? (
-                  <img
-                    src={foto}
-                    alt={`Foto de ${contexto.profissional_nome}`}
-                  />
+                  <img src={foto} alt={`Foto de ${contexto.profissional_nome}`} />
                 ) : (
                   <span>{iniciais(contexto.profissional_nome)}</span>
                 )}
               </div>
-            </div>
+            </button>
           </div>
         </header>
 

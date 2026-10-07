@@ -8,63 +8,43 @@ import {
 
 import { supabase } from "../../services/supabase";
 
-export const ProfissionalContext =
-  createContext(null);
+export const ProfissionalContext = createContext(null);
 
-export function ProfissionalProvider({
-  children,
-}) {
-  const [
-    contexto,
-    setContexto,
-  ] = useState(null);
+export function ProfissionalProvider({ children }) {
+  const [contexto, setContexto] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [loading, setLoading] =
-    useState(true);
+  const carregar = useCallback(async () => {
+    setLoading(true);
+    setError("");
 
-  const [error, setError] =
-    useState("");
+    try {
+      const { data, error: rpcError } = await supabase.rpc(
+        "obter_contexto_profissional",
+      );
 
-  const carregar =
-    useCallback(async () => {
-      setLoading(true);
-      setError("");
-
-      try {
-        const {
-          data,
-          error: rpcError,
-        } = await supabase.rpc(
-          "obter_contexto_profissional",
-        );
-
-        if (rpcError) {
-          throw rpcError;
-        }
-
-        const item =
-          Array.isArray(data)
-            ? data[0]
-            : data;
-
-        setContexto(
-          item || null,
-        );
-      } catch (err) {
-        console.error(
-          "[BarberHub] Contexto profissional:",
-          err,
-        );
-
-        setContexto(null);
-        setError(
-          err?.message ||
-            "Não foi possível carregar seu perfil profissional.",
-        );
-      } finally {
-        setLoading(false);
+      if (rpcError) {
+        throw rpcError;
       }
-    }, []);
+
+      const item = Array.isArray(data) ? data[0] : data;
+
+      if (!item) {
+        throw new Error("Vínculo profissional não encontrado.");
+      }
+
+      setContexto(item);
+    } catch (err) {
+      console.error("[BarberHub] Contexto profissional:", err);
+      setContexto(null);
+      setError(
+        err?.message || "Não foi possível carregar seu perfil profissional.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     carregar();
@@ -75,21 +55,13 @@ export function ProfissionalProvider({
       contexto,
       loading,
       error,
-      recarregar:
-        carregar,
+      recarregar: carregar,
     }),
-    [
-      contexto,
-      loading,
-      error,
-      carregar,
-    ],
+    [contexto, loading, error, carregar],
   );
 
   return (
-    <ProfissionalContext.Provider
-      value={value}
-    >
+    <ProfissionalContext.Provider value={value}>
       {children}
     </ProfissionalContext.Provider>
   );
