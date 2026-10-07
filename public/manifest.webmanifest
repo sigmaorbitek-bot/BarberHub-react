@@ -1,6 +1,6 @@
 {
-  "name": "BarberSig",
-  "short_name": "BarberSig",
+  "name": "BarberHub",
+  "short_name": "BarberHub",
   "description": "Agendamentos, serviços e gestão para barbearias.",
   "lang": "pt-BR",
   "start_url": "/",
@@ -9,7 +9,11 @@
   "orientation": "portrait-primary",
   "background_color": "#07090B",
   "theme_color": "#D4AF37",
-  "categories": ["business", "productivity", "lifestyle"],
+  "categories": [
+    "business",
+    "productivity",
+    "lifestyle"
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -18,22 +22,10 @@
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-192-maskable.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-512-maskable.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
     }
   ]
 }

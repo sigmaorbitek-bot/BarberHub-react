@@ -1,4 +1,4 @@
-const BARBERHUB_SW_VERSION = "2026-10-05.1";
+const BARBERHUB_SW_VERSION = "2026-10-07.1";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -33,6 +33,7 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body: payload.body || "Você recebeu uma nova notificação.",
+
     icon: payload.icon || "/icons/icon-192.png",
     badge: payload.badge || "/icons/badge-96.png",
     tag: payload.tag || `barberhub:${payload.notificacao_id || Date.now()}`,
@@ -60,6 +61,7 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
   const rawTarget = event.notification?.data?.url || "/";
+
   const target = new URL(rawTarget, self.location.origin);
 
   if (target.origin !== self.location.origin) {

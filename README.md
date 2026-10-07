@@ -1,52 +1,39 @@
-# BarberHub React
+# BarberHub
 
-Nova versão do BarberHub construída em paralelo ao sistema atual de produção.
+Sistema web para gestão de barbearias, desenvolvido com React, Vite e Supabase.
+
+O BarberHub reúne em uma única plataforma recursos para barbearias, clientes e profissionais, incluindo agendamentos, serviços, produtos, pedidos, financeiro, avaliações e notificações.
+
+## Tecnologias
+
+O projeto utiliza principalmente:
+
+- React
+- React Router
+- Vite
+- Supabase
+- PostgreSQL
+- Supabase Auth
+- Supabase Storage
+- Supabase Edge Functions
+- Web Push
+- Service Worker
+- PWA
+- jsPDF
+- Vercel
 
 ## Requisitos
 
+Para executar o projeto localmente:
+
 - Node.js 22.22 ou superior
 - npm
-- Novo projeto Supabase do BarberHub
+- acesso ao projeto Supabase do BarberHub
 
 ## Instalação
 
+Clone o projeto e instale as dependências:
+
 ```bash
 npm install
-```
 
-Copie `.env.example` para `.env` e informe a URL e a chave publicável do NOVO Supabase:
-
-```env
-VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_SUA_CHAVE
-```
-
-Depois:
-
-```bash
-npm run dev
-```
-
-## Banco
-
-As migrations ficam em `supabase/migrations/`.
-
-Ordem atual:
-
-1. `001_base_schema.sql`
-2. `002_indexes.sql`
-3. `003_rls.sql`
-4. `004_functions.sql`
-5. `005_triggers.sql`
-6. `006_seed_dev.sql`
-
-## Rotas iniciais
-
-- `/` redireciona conforme o tipo do usuário autenticado
-- `/login/barbearia`
-- `/login/cliente`
-- `/painel`
-- `/painel/:barbeariaId`
-- `/cliente`
-
-O frontend antigo continua sendo o sistema de produção. Este projeto deve apontar somente para o novo Supabase de desenvolvimento/homologação.
