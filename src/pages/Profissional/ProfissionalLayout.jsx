@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Navigate, NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../hooks/useAuth";
 import { ProfissionalProvider } from "./ProfissionalContext";
@@ -39,6 +39,12 @@ function LayoutInterno() {
         <span>{error || "Vínculo profissional não encontrado."}</span>
       </main>
     );
+  }
+
+  // Não disponibiliza o painel enquanto a senha temporária não for trocada.
+  // A consulta é feita novamente pelo provider ao voltar do primeiro acesso.
+  if (contexto.primeiro_acesso_pendente) {
+    return <Navigate to="/profissional/primeiro-acesso" replace />;
   }
 
   const foto = contexto.profissional_foto_url;

@@ -26,10 +26,7 @@ Deno.serve(async (request) => {
   }
 
   if (request.method !== "POST") {
-    return json(
-      { sucesso: false, erro: "Método não permitido." },
-      405,
-    );
+    return json({ sucesso: false, erro: "Método não permitido." }, 405);
   }
 
   try {
@@ -41,27 +38,18 @@ Deno.serve(async (request) => {
     const token = authorization.replace(/^Bearer\s+/i, "").trim();
 
     if (!token) {
-      return json(
-        { sucesso: false, erro: "Sessão não encontrada." },
-        401,
-      );
+      return json({ sucesso: false, erro: "Sessão não encontrada." }, 401);
     }
 
     const body = await request.json().catch(() => ({}));
     const profissionalId = String(body?.profissionalId ?? "").trim();
 
     if (!profissionalId) {
-      return json(
-        { sucesso: false, erro: "Profissional não informado." },
-        400,
-      );
+      return json({ sucesso: false, erro: "Profissional não informado." }, 400);
     }
 
     if (body?.confirmacao !== "REMOVER PROFISSIONAL") {
-      return json(
-        { sucesso: false, erro: "Confirmação inválida." },
-        400,
-      );
+      return json({ sucesso: false, erro: "Confirmação inválida." }, 400);
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
@@ -105,9 +93,7 @@ Deno.serve(async (request) => {
 
     const { data: profissional, error: profissionalError } = await admin
       .from("profissionais")
-      .select(
-        "id, barbearia_id, usuario_id, nome, foto_path, removido_em",
-      )
+      .select("id, barbearia_id, usuario_id, nome, foto_path, removido_em")
       .eq("id", profissionalId)
       .maybeSingle();
 
@@ -208,10 +194,7 @@ Deno.serve(async (request) => {
       profissionalId: profissional.id,
     });
   } catch (error) {
-    console.error(
-      "[BarberHub] Erro ao remover profissional da equipe:",
-      error,
-    );
+    console.error("[BarberHub] Erro ao remover profissional da equipe:", error);
 
     return json(
       {

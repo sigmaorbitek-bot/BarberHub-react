@@ -74,10 +74,8 @@ Deno.serve(async (request) => {
       },
     });
 
-    const {
-      data: userData,
-      error: userError,
-    } = await admin.auth.getUser(token);
+    const { data: userData, error: userError } =
+      await admin.auth.getUser(token);
 
     if (userError || !userData?.user) {
       return json(
@@ -137,7 +135,9 @@ Deno.serve(async (request) => {
         .remove([profissional.foto_path]);
 
       if (fotoError) {
-        throw new Error(`Não foi possível remover sua foto: ${fotoError.message}`);
+        throw new Error(
+          `Não foi possível remover sua foto: ${fotoError.message}`,
+        );
       }
     }
 

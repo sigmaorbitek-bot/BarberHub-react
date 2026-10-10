@@ -202,6 +202,20 @@ export async function getCurrentPushSubscription() {
   return registration.pushManager.getSubscription();
 }
 
+// Apenas a conta atual pode verificar se esta inscricao pertence a ela.
+// A consulta nunca transfere a inscricao de outro usuario.
+async function verificarInscricaoDaConta(subscription) {
+  if (!subscription?.endpoint) return false;
+
+  const { data, error } = await supabase.rpc(
+    "verificar_push_subscription_propria",
+    { p_endpoint: subscription.endpoint },
+  );
+
+  if (error) throw error;
+  return data === true;
+}
+
 export async function enableWebPush() {
   if (!pushSupported()) {
     throw new Error("Web Push não é suportado neste navegador.");
@@ -213,12 +227,11 @@ export async function enableWebPush() {
 
   if (isIOS() && !isStandalone()) {
     throw new Error(
-      "No iPhone ou iPad, adicione o BarberSig à Tela de Início antes de ativar as notificações.",
+      "No iPhone ou iPad, adicione o BarberHub à Tela de Início antes de ativar as notificações.",
     );
   }
 
   let permission = Notification.permission;
-
   if (permission === "default") {
     permission = await Notification.requestPermission();
   }
@@ -234,18 +247,53 @@ export async function enableWebPush() {
   }
 
   const registration = await registerBarberSigServiceWorker();
-
   let subscription = await registration.pushManager.getSubscription();
+  let inscricaoNova = false;
+
+  if (subscription) {
+    const pertenceAConta = await verificarInscricaoDaConta(subscription);
+
+    if (!pertenceAConta) {
+      // Somente apos o clique explicito em Ativar: o navegador deixa de usar
+      // a inscricao anterior. Nenhum usuario_id e trocado pelo frontend.
+      const desinscrita = await subscription.unsubscribe();
+      if (!desinscrita) {
+        throw new Error(
+          "Não foi possível liberar a inscrição antiga. Use outro perfil do navegador ou tente novamente.",
+        );
+      }
+      subscription = null;
+    }
+  }
 
   if (!subscription) {
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-
       applicationServerKey: base64ToUint8Array(VAPID_PUBLIC_KEY),
     });
+    inscricaoNova = true;
   }
 
-  await saveSubscription(subscription);
+  try {
+    await saveSubscription(subscription);
+  } catch (error) {
+    // Evita deixar inscricao recem-criada no navegador sem registro valido.
+    if (inscricaoNova) {
+      try {
+        await subscription.unsubscribe();
+      } catch (cleanupError) {
+        console.warn("[BarberHub] Falha ao desfazer inscrição Push:", cleanupError);
+      }
+    }
+
+    if (error?.code === "P0001" &&
+        /já está vinculado a outra conta/i.test(error?.message || "")) {
+      throw new Error(
+        "O navegador ainda está vinculado a outra conta. Atualize a página e tente ativar novamente ou use outro perfil do navegador.",
+      );
+    }
+    throw error;
+  }
 
   return subscription;
 }
@@ -280,104 +328,66 @@ export async function disableWebPush() {
 
 export async function getWebPushStatus() {
   const ios = isIOS();
-
   const standalone = isStandalone();
-
   const dispositivo = obterDadosDispositivo();
 
   if (!pushSupported()) {
     return {
       supported: false,
-
       permission: "unsupported",
-
       active: false,
-
       subscribed: false,
-
       subscription: null,
-
       ios,
-
       standalone,
-
       device: dispositivo,
     };
   }
 
   const permission = Notification.permission;
-
   if (permission !== "granted") {
     return {
       supported: true,
-
       permission,
-
       active: false,
-
       subscribed: false,
-
       subscription: null,
-
       ios,
-
       standalone,
-
       device: dispositivo,
     };
   }
 
   try {
     const subscription = await getCurrentPushSubscription();
-
-    const active = Boolean(subscription);
-
-    if (subscription) {
-      try {
-        await saveSubscription(subscription);
-      } catch (error) {
-        console.warn(
-          "[BarberSig] Não foi possível sincronizar a subscription:",
-          error,
-        );
-      }
-    }
+    // Somente leitura: nao tenta salvar nem assumir automaticamente
+    // uma inscricao que pertence a outro login no mesmo navegador.
+    const active = subscription
+      ? await verificarInscricaoDaConta(subscription)
+      : false;
 
     return {
       supported: true,
-
       permission,
-
       active,
-
-      subscribed: active,
-
+      subscribed: Boolean(subscription),
       subscription: subscription || null,
-
+      needsActivation: Boolean(subscription) && !active,
       ios,
-
       standalone,
-
       device: dispositivo,
     };
   } catch (error) {
-    console.warn("[BarberSig] Não foi possível verificar o Web Push:", error);
-
+    console.warn("[BarberHub] Não foi possível verificar o Web Push:", error);
     return {
       supported: true,
-
       permission,
-
       active: false,
-
       subscribed: false,
-
       subscription: null,
-
+      needsActivation: false,
       ios,
-
       standalone,
-
       device: dispositivo,
     };
   }
@@ -452,7 +462,7 @@ export async function syncAppBadgeFromDatabase() {
       }
     } catch (badgeError) {
       console.warn(
-        "[BarberSig] Não foi possível atualizar o badge do aplicativo:",
+        "[BarberHub] Não foi possível atualizar o badge do aplicativo:",
         badgeError,
       );
     }
@@ -460,7 +470,7 @@ export async function syncAppBadgeFromDatabase() {
     return total;
   } catch (error) {
     console.warn(
-      "[BarberSig] Não foi possível sincronizar o badge:",
+      "[BarberHub] Não foi possível sincronizar o badge:",
       error,
     );
 

@@ -1,343 +1,178 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// BarberHub / AASORB - Edge Function excluir-conta (versao 043)
+// Apaga todas as unidades DO DONO em uma unica transacao SQL autorizada.
+// Storage e Auth sao limpos depois, usando checkpoint persistente.
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-function json(
-  body: Record<string, unknown>,
-  status = 200,
-) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
+type Arquivo = { bucket: string; name: string };
+type ResultadoRpc = {
+  unidades_removidas: number;
+  arquivos: Arquivo[];
+  pendente: boolean;
+};
+
+function responder(status: number, data: Record<string, unknown>): Response {
+  return Response.json(data, { status, headers: corsHeaders });
 }
 
-function pathFromPublicUrl(
-  url: string | null | undefined,
-  bucket: string,
-) {
-  if (!url) {
-    return null;
-  }
+function tokenDaRequisicao(request: Request): string | null {
+  const valor = request.headers.get("Authorization") || "";
+  return /^Bearer\s+(\S+)$/i.exec(valor)?.[1] || null;
+}
 
-  const marker = `/storage/v1/object/public/${bucket}/`;
-  const index = url.indexOf(marker);
-
-  if (index < 0) {
-    return null;
-  }
-
-  return decodeURIComponent(
-    url.slice(index + marker.length),
+function arquivosValidos(resultado: unknown): resultado is Arquivo[] {
+  if (!Array.isArray(resultado)) return false;
+  const bucketsPermitidos = new Set(["barbearias", "produtos", "profissionais"]);
+  return resultado.every((item) =>
+    item && typeof item === "object" &&
+    bucketsPermitidos.has(item.bucket) &&
+    typeof item.name === "string" &&
+    item.name.length > 0 &&
+    item.name.length <= 1024 &&
+    !item.name.startsWith("/") &&
+    !item.name.includes("\\") &&
+    !item.name.split("/").includes("..")
   );
 }
 
-async function removePaths(
-  admin: ReturnType<typeof createClient>,
-  bucket: string,
-  paths: Array<string | null | undefined>,
-) {
-  const unique = [
-    ...new Set(
-      paths.filter(
-        (value): value is string =>
-          Boolean(value && value.trim()),
-      ),
-    ),
-  ];
-
-  if (!unique.length) {
-    return;
-  }
-
-  for (let index = 0; index < unique.length; index += 100) {
-    const chunk = unique.slice(index, index + 100);
-
-    const { error } = await admin.storage
-      .from(bucket)
-      .remove(chunk);
-
-    if (error) {
-      throw new Error(
-        `Não foi possível apagar arquivos do bucket ${bucket}: ${error.message}`,
-      );
-    }
-  }
-}
-
-Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: corsHeaders,
-    });
-  }
-
+Deno.serve(async (request: Request) => {
+  if (request.method === "OPTIONS") return responder(200, { ok: true });
   if (request.method !== "POST") {
-    return json(
-      {
-        ok: false,
-        error: "Método não permitido.",
-      },
-      405,
-    );
+    return responder(405, { ok: false, error: "Método não permitido." });
   }
+
+  const url = Deno.env.get("SUPABASE_URL") || "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  if (!url || !serviceRoleKey) {
+    return responder(500, { ok: false, error: "Servidor não configurado." });
+  }
+
+  const token = tokenDaRequisicao(request);
+  if (!token) return responder(401, { ok: false, error: "Sessão não encontrada." });
+
+  const admin = createClient(url, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
   try {
-    const authorization =
-      request.headers.get("Authorization");
-
-    if (!authorization) {
-      return json(
-        {
-          ok: false,
-          error: "Sessão não encontrada.",
-        },
-        401,
-      );
+    const { data: sessao, error: authError } = await admin.auth.getUser(token);
+    const usuario = sessao?.user;
+    if (authError || !usuario) {
+      return responder(401, { ok: false, error: "Sessão inválida ou expirada." });
     }
 
-    const client = createClient(
-      SUPABASE_URL,
-      SUPABASE_ANON_KEY,
-      {
-        global: {
-          headers: {
-            Authorization: authorization,
-          },
-        },
-        auth: {
-          persistSession: false,
-        },
-      },
-    );
-
-    const admin = createClient(
-      SUPABASE_URL,
-      SERVICE_ROLE_KEY,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      },
-    );
-
-    const {
-      data: { user },
-      error: userError,
-    } = await client.auth.getUser();
-
-    if (userError || !user) {
-      return json(
-        {
-          ok: false,
-          error: "Sessão inválida ou expirada.",
-        },
-        401,
-      );
+    const corpo = await request.json().catch(() => ({}));
+    if (corpo?.confirmacao !== "APAGAR CONTA") {
+      return responder(400, { ok: false, error: 'Digite "APAGAR CONTA".' });
     }
 
-    const payload = await request.json().catch(
-      () => ({}),
-    );
-
-    if (payload?.confirmacao !== "APAGAR CONTA") {
-      return json(
-        {
-          ok: false,
-          error:
-            'Confirmação inválida. Digite "APAGAR CONTA".',
-        },
-        400,
-      );
-    }
-
-    const { data: profile, error: profileError } =
-      await admin
-        .from("profiles")
-        .select("id, tipo")
-        .eq("id", user.id)
-        .maybeSingle();
-
-    if (profileError) {
-      throw profileError;
-    }
-
-    if (!profile || profile.tipo !== "dono") {
-      return json(
-        {
-          ok: false,
-          error:
-            "Esta operação é exclusiva da conta administradora.",
-        },
-        403,
-      );
-    }
-
-    const {
-      data: barbearias,
-      error: barbeariasError,
-    } = await admin
-      .from("barbearias")
-      .select("id, logo_url")
-      .eq("dono_id", user.id);
-
-    if (barbeariasError) {
-      throw barbeariasError;
-    }
-
-    const ids = (barbearias || []).map(
-      (item) => item.id,
-    );
-
-    let produtos: Array<{
-      foto_path: string | null;
-      foto_url: string | null;
-    }> = [];
-
-    let profissionais: Array<{
-      foto_path: string | null;
-      foto_url: string | null;
-    }> = [];
-
-    if (ids.length) {
-      const [produtosResult, profissionaisResult] =
-        await Promise.all([
-          admin
-            .from("produtos")
-            .select("foto_path, foto_url")
-            .in("barbearia_id", ids),
-          admin
-            .from("profissionais")
-            .select("foto_path, foto_url")
-            .in("barbearia_id", ids),
-        ]);
-
-      if (produtosResult.error) {
-        throw produtosResult.error;
-      }
-
-      if (profissionaisResult.error) {
-        throw profissionaisResult.error;
-      }
-
-      produtos = produtosResult.data || [];
-      profissionais =
-        profissionaisResult.data || [];
-
-      await removePaths(
-        admin,
-        "produtos",
-        produtos.flatMap((item) => [
-          item.foto_path,
-          pathFromPublicUrl(
-            item.foto_url,
-            "produtos",
-          ),
-        ]),
-      );
-
-      await removePaths(
-        admin,
-        "profissionais",
-        profissionais.flatMap((item) => [
-          item.foto_path,
-          pathFromPublicUrl(
-            item.foto_url,
-            "profissionais",
-          ),
-        ]),
-      );
-
-      await removePaths(
-        admin,
-        "barbearias",
-        (barbearias || []).map((item) =>
-          pathFromPublicUrl(
-            item.logo_url,
-            "barbearias",
-          ),
-        ),
-      );
-
-      // A migration 027 usa RESTRICT em Contas a Receber.
-      // Apagamos primeiro os registros financeiros dessa área.
-      const { error: pagamentosError } =
-        await admin
-          .from("pagamentos_contas_receber")
-          .delete()
-          .in("barbearia_id", ids);
-
-      if (
-        pagamentosError &&
-        pagamentosError.code !== "42P01"
-      ) {
-        throw pagamentosError;
-      }
-
-      const { error: contasError } = await admin
-        .from("contas_receber")
-        .delete()
-        .in("barbearia_id", ids);
-
-      if (
-        contasError &&
-        contasError.code !== "42P01"
-      ) {
-        throw contasError;
-      }
-
-      const { error: deleteBusinessError } =
-        await admin
-          .from("barbearias")
-          .delete()
-          .eq("dono_id", user.id);
-
-      if (deleteBusinessError) {
-        throw deleteBusinessError;
-      }
-    }
-
-    const { error: deleteUserError } =
-      await admin.auth.admin.deleteUser(
-        user.id,
-        false,
-      );
-
-    if (deleteUserError) {
-      throw deleteUserError;
-    }
-
-    return json({
-      ok: true,
-      deleted_barbershops: ids.length,
-    });
-  } catch (error) {
-    console.error(
-      "[BarberHub] excluir-conta:",
-      error,
-    );
-
-    return json(
-      {
+    if (
+      typeof corpo?.emailConfirmacao !== "string" ||
+      corpo.emailConfirmacao.trim().toLowerCase() !== usuario.email?.toLowerCase()
+    ) {
+      return responder(400, {
         ok: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Erro interno ao excluir a conta.",
-      },
-      500,
+        error: "Confirme também o e-mail da conta proprietária.",
+      });
+    }
+
+    const { data: perfil, error: perfilError } = await admin.from("profiles")
+      .select("tipo").eq("id", usuario.id).maybeSingle();
+    if (perfilError) throw perfilError;
+    if (perfil?.tipo !== "dono") {
+      return responder(403, { ok: false, error: "Operação exclusiva do proprietário." });
+    }
+
+    const { data, error: erroRpc } = await admin.rpc(
+      "edge_excluir_conta_dono_definitiva", { p_ator_id: usuario.id },
     );
+    if (erroRpc) {
+      console.error("[BarberHub] Falha ao excluir unidades (transacao revertida):", {
+        code: erroRpc.code, message: erroRpc.message,
+      });
+      return responder(409, {
+        ok: false,
+        error: "O banco impediu a exclusão para preservar a integridade. Nenhuma exclusão parcial de tabelas foi confirmada. Consulte os logs.",
+      });
+    }
+
+    const resultado = data as ResultadoRpc | null;
+    if (!resultado || !arquivosValidos(resultado.arquivos)) {
+      console.error("[BarberHub] Manifesto de exclusao invalido.");
+      return responder(202, {
+        ok: false,
+        pendente: true,
+        error: "As unidades foram removidas, mas a limpeza dos arquivos precisa de suporte técnico.",
+      });
+    }
+
+    // Nao aceitar rotas arbitrarias: o manifesto foi produzido no banco,
+    // com os objetos fisicamente associados aos prefixos de unidades do dono.
+    for (const bucket of ["barbearias", "produtos", "profissionais"]) {
+      const nomes = resultado.arquivos.filter((a) => a.bucket === bucket)
+        .map((a) => a.name);
+      for (let i = 0; i < nomes.length; i += 100) {
+        const lote = nomes.slice(i, i + 100);
+        const { error } = await admin.storage.from(bucket).remove(lote);
+        if (error) {
+          console.error("[BarberHub] Pendencia de remocao Storage:", {
+            bucket, quantidade: lote.length, message: error.message,
+          });
+          return responder(202, {
+            ok: false,
+            pendente: true,
+            error: "As barbearias já foram removidas. Alguns arquivos ainda precisam ser limpos. Não crie outra conta; tente novamente ou contate o suporte.",
+          });
+        }
+      }
+    }
+
+    const { data: objetosRestantes, error: erroConferencia } = await admin.rpc(
+      "edge_conferir_arquivos_exclusao_dono", { p_ator_id: usuario.id },
+    );
+    if (erroConferencia || Number(objetosRestantes) !== 0) {
+      console.error("[BarberHub] Limpeza do Storage ainda nao confirmada:", {
+        restantes: objetosRestantes,
+        code: erroConferencia?.code,
+        message: erroConferencia?.message,
+      });
+      return responder(202, {
+        ok: false,
+        pendente: true,
+        error: "A exclusão das unidades foi concluída, mas alguns arquivos ainda estão pendentes de remoção. Tente novamente ou contate o suporte.",
+      });
+    }
+
+    // So depois de ter concluido a remocao do Storage excluimos a conta Auth.
+    // O checkpoint pendente possui FK auth.users ON DELETE CASCADE.
+    const { error: erroExcluirAuth } = await admin.auth.admin.deleteUser(
+      usuario.id, false,
+    );
+    if (erroExcluirAuth) {
+      console.error("[BarberHub] Pendencia de exclusao Auth:", {
+        code: erroExcluirAuth.code, message: erroExcluirAuth.message,
+      });
+      return responder(202, {
+        ok: false,
+        pendente: true,
+        error: "Barbearias e arquivos removidos. A exclusão da conta de acesso está pendente. Tente novamente ou contate o suporte.",
+      });
+    }
+
+    return responder(200, {
+      ok: true,
+      barbearias_excluidas: resultado.unidades_removidas,
+    });
+  } catch (err) {
+    console.error("[BarberHub] excluir-conta:", err);
+    return responder(500, {
+      ok: false,
+      error: "Não foi possível concluir a exclusão. Verifique os registros do servidor antes de tentar novamente.",
+    });
   }
 });

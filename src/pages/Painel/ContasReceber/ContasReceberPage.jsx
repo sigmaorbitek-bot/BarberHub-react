@@ -47,6 +47,12 @@ function somenteDigitos(valor) {
   return String(valor || "").replace(/\D/g, "");
 }
 
+function agoraNoHorarioLocalParaInput() {
+  const agora = new Date();
+  const deslocamento = agora.getTimezoneOffset() * 60_000;
+  return new Date(agora.getTime() - deslocamento).toISOString().slice(0, 16);
+}
+
 function mensagemErro(error) {
   const texto = error?.message || "Não foi possível concluir a operação.";
   return texto;
@@ -109,7 +115,7 @@ export default function ContasReceberPage() {
   const [formPagamento, setFormPagamento] = useState({
     valor: "",
     formaPagamento: "pix",
-    pagoEm: new Date().toISOString().slice(0, 16),
+    pagoEm: agoraNoHorarioLocalParaInput(),
     observacao: "",
   });
 
@@ -287,6 +293,7 @@ export default function ContasReceberPage() {
 
   async function salvarConta(event) {
     event.preventDefault();
+    if (saving) return;
     setErro("");
     setSucesso("");
 
@@ -350,7 +357,7 @@ export default function ContasReceberPage() {
     setFormPagamento({
       valor: Number(conta.saldo || 0).toFixed(2),
       formaPagamento: "pix",
-      pagoEm: new Date().toISOString().slice(0, 16),
+      pagoEm: agoraNoHorarioLocalParaInput(),
       observacao: "",
     });
     setModalPagamento(true);
@@ -359,7 +366,7 @@ export default function ContasReceberPage() {
   async function registrarPagamento(event) {
     event.preventDefault();
 
-    if (!contaAtual) return;
+    if (!contaAtual || saving) return;
 
     const valor = Number(formPagamento.valor);
 
@@ -411,10 +418,23 @@ export default function ContasReceberPage() {
         observacao: formPagamento.observacao,
       };
 
-      await gerarComprovante(contaAtual, comprovante, saldoDepois);
+      // O pagamento já foi confirmado pelo banco. Falha ao gerar o PDF
+      // NUNCA deve aparecer como falha no pagamento nem incentivar repetição.
+      try {
+        await gerarComprovante(contaAtual, comprovante, saldoDepois);
+      } catch (erroComprovante) {
+        console.error("[BarberHub] Pagamento salvo, mas PDF falhou:", erroComprovante);
+        setSucesso(
+          "Pagamento salvo com sucesso no banco, mas não foi possível gerar o PDF. " +
+          "Consulte o histórico da conta antes de tentar registrar outro pagamento.",
+        );
+      }
     } catch (error) {
-      console.error("[BarberHub] Registrar pagamento:", error);
-      setErro(mensagemErro(error));
+      console.error("[BarberHub] Falha na operação de pagamento:", error);
+      setErro(
+        "Não foi possível confirmar a operação. Confira o histórico desta conta " +
+        "antes de tentar novamente. Detalhes: " + mensagemErro(error),
+      );
     } finally {
       setSaving(false);
     }
@@ -601,7 +621,7 @@ export default function ContasReceberPage() {
 
     doc.setFontSize(8);
     doc.text(
-      "BarberHub • Desenvolvido por Sigma Orbitek",
+      "BarberHub • Desenvolvido por AASORB — Soluções Digitais",
       largura / 2,
       287,
       { align: "center" },

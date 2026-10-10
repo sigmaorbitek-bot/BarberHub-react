@@ -36,6 +36,57 @@ const INITIAL_PROFILE = {
 
 const INITIAL_PREFS = Object.fromEntries(PREFS.map(([key]) => [key, true]));
 
+const LOGO_BUCKET = "barbearias";
+const LOGO_MAX_BYTES = 5 * 1024 * 1024;
+const LOGO_EXTENSOES = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
+// Só exclui uma logo antiga se ela pertencer comprovadamente a esta unidade.
+function obterCaminhoLogoGerenciada(storage, url, barbeariaId, usuarioId) {
+  if (!url || !barbeariaId || !usuarioId) return null;
+
+  try {
+    const marcador = "__validar_caminho_logo__";
+    const urlModelo = storage.getPublicUrl(marcador).data?.publicUrl;
+    if (!urlModelo) return null;
+
+    const modelo = new URL(urlModelo);
+    const antiga = new URL(url);
+    const prefixo = modelo.pathname.slice(0, -marcador.length);
+
+    if (antiga.origin !== modelo.origin || !antiga.pathname.startsWith(prefixo)) {
+      return null;
+    }
+
+    const caminho = decodeURIComponent(antiga.pathname.slice(prefixo.length));
+    const partes = caminho.split("/");
+    if (partes.length !== 3) return null;
+
+    const arquivo = partes[2];
+    if (!/^logo-[0-9a-f-]+\.(png|jpe?g|webp)$/i.test(arquivo)) {
+      return null;
+    }
+
+    const caminhoAtual = partes[0] === barbeariaId && partes[1] === usuarioId;
+    const caminhoLegado = partes[0] === usuarioId && partes[1] === barbeariaId;
+    return caminhoAtual || caminhoLegado ? caminho : null;
+  } catch {
+    return null;
+  }
+}
+
+async function obterMensagemErroFuncao(error, alternativa) {
+  const resposta = error?.context;
+  if (resposta instanceof Response) {
+    const detalhes = await resposta.clone().json().catch(() => null);
+    return detalhes?.erro || detalhes?.error || detalhes?.message || alternativa;
+  }
+  return error?.message || alternativa;
+}
+
 function Feedback({ type, children }) {
   if (!children) return null;
   return <div className={`config-feedback config-feedback--${type}`}>{children}</div>;
@@ -53,6 +104,7 @@ export default function Configuracoes() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleteEmailConfirmation, setDeleteEmailConfirmation] = useState("");
   const [deleteMessage, setDeleteMessage] = useState("");
 
   const [business, setBusiness] = useState(INITIAL_BUSINESS);
@@ -114,84 +166,157 @@ export default function Configuracoes() {
     event.preventDefault();
     setBusinessMessage("");
 
+    if (uploadingLogo || savingBusiness) {
+      setBusinessMessage("Aguarde a operação em andamento antes de salvar.");
+      return;
+    }
+
+    if (!barbeariaId) {
+      setBusinessMessage("Barbearia não identificada. Atualize a página.");
+      return;
+    }
+
     if (!business.nome.trim() || !business.cidade.trim()) {
       setBusinessMessage("Informe pelo menos o nome da barbearia e a cidade.");
       return;
     }
 
     setSavingBusiness(true);
-    const { error } = await supabase.rpc("atualizar_configuracoes_barbearia_painel", {
-      p_barbearia_id: barbeariaId,
-      p_nome: business.nome,
-      p_cidade: business.cidade,
-      p_endereco: business.endereco || null,
-      p_telefone: business.telefone || null,
-      p_logo_url: business.logo_url || null,
-    });
-    setSavingBusiness(false);
+    try {
+      const { error } = await supabase.rpc("atualizar_configuracoes_barbearia_painel", {
+        p_barbearia_id: barbeariaId,
+        p_nome: business.nome.trim(),
+        p_cidade: business.cidade.trim(),
+        p_endereco: business.endereco?.trim() || null,
+        p_telefone: business.telefone?.trim() || null,
+        p_logo_url: business.logo_url || null,
+      });
+      if (error) throw error;
 
-    if (error) {
+      try {
+        await recarregarBarbearia?.();
+      } catch (refreshError) {
+        console.warn("[BarberHub] Dados salvos, mas o cabeçalho não atualizou:", refreshError);
+      }
+      setBusinessMessage("Dados da unidade atualizados com sucesso.");
+    } catch (error) {
       console.error("[BarberHub] Erro ao salvar unidade:", error);
-      setBusinessMessage(error.message || "Não foi possível salvar os dados da unidade.");
-      return;
+      setBusinessMessage(error?.message || "Não foi possível atualizar a unidade.");
+    } finally {
+      setSavingBusiness(false);
     }
-
-    await recarregarBarbearia?.();
-    setBusinessMessage("Dados da unidade atualizados com sucesso.");
   }
 
   async function uploadLogo(event) {
-    const file = event.target.files?.[0];
+    const arquivo = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (!arquivo || uploadingLogo || savingBusiness) return;
 
-    if (!file.type.startsWith("image/")) {
-      setBusinessMessage("Selecione um arquivo de imagem válido.");
+    const extensao = LOGO_EXTENSOES[arquivo.type];
+    if (!extensao) {
+      setBusinessMessage("Use uma imagem PNG, JPG ou WebP.");
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setBusinessMessage("A logo deve ter no máximo 5 MB.");
+    if (arquivo.size === 0 || arquivo.size > LOGO_MAX_BYTES) {
+      setBusinessMessage("A logo precisa ter entre 1 byte e 5 MB.");
+      return;
+    }
+
+    if (!barbeariaId) {
+      setBusinessMessage("Barbearia não identificada. Atualize a página.");
       return;
     }
 
     setUploadingLogo(true);
     setBusinessMessage("");
 
+    const storage = supabase.storage.from(LOGO_BUCKET);
+    let novoCaminho = null;
+    let uploadConcluido = false;
+    let logoVinculadaAoBanco = false;
+
     try {
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
-      const userId = userData.user?.id;
-      if (!userId) throw new Error("Usuário não autenticado.");
 
-      const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const path = `${barbeariaId}/${userId}/logo-${Date.now()}.${ext || "png"}`;
+      const usuarioId = userData?.user?.id;
+      if (!usuarioId) throw new Error("Sua sessão expirou. Entre novamente.");
 
-      const { error: uploadError } = await supabase.storage
-        .from("barbearias")
-        .upload(path, file, { cacheControl: "3600", upsert: false });
-      if (uploadError) throw uploadError;
+      const imagemAnterior = business.logo_url;
+      const caminhoAntigo = obterCaminhoLogoGerenciada(
+        storage,
+        imagemAnterior,
+        barbeariaId,
+        usuarioId,
+      );
 
-      const { data: publicData } = supabase.storage.from("barbearias").getPublicUrl(path);
-      const publicUrl = publicData?.publicUrl;
-      if (!publicUrl) throw new Error("Não foi possível gerar a URL pública da logo.");
+      // A regra 026c aceita: <barbearia_id>/<usuario_id>/logo-<dígitos>.<ext>.
+      const aleatorio = crypto.getRandomValues(new Uint32Array(1))[0];
+      novoCaminho = `${barbeariaId}/${usuarioId}/logo-${Date.now()}${aleatorio}.${extensao}`;
 
-      const { error: saveError } = await supabase.rpc("atualizar_configuracoes_barbearia_painel", {
-        p_barbearia_id: barbeariaId,
-        p_nome: business.nome,
-        p_cidade: business.cidade,
-        p_endereco: business.endereco || null,
-        p_telefone: business.telefone || null,
-        p_logo_url: publicUrl,
+      const { error: uploadError } = await storage.upload(novoCaminho, arquivo, {
+        cacheControl: "3600",
+        contentType: arquivo.type,
+        upsert: false,
       });
+      if (uploadError) throw uploadError;
+      uploadConcluido = true;
+
+      const novaUrl = storage.getPublicUrl(novoCaminho).data?.publicUrl;
+      if (!novaUrl) throw new Error("Não foi possível obter a URL da nova logo.");
+
+      const { error: saveError } = await supabase.rpc(
+        "atualizar_configuracoes_barbearia_painel",
+        {
+          p_barbearia_id: barbeariaId,
+          p_nome: business.nome.trim(),
+          p_cidade: business.cidade.trim(),
+          p_endereco: business.endereco?.trim() || null,
+          p_telefone: business.telefone?.trim() || null,
+          p_logo_url: novaUrl,
+        },
+      );
       if (saveError) throw saveError;
 
-      setBusiness((current) => ({ ...current, logo_url: publicUrl }));
-      await recarregarBarbearia?.();
+      // Só removemos a imagem anterior após a nova URL ser salva no banco.
+      logoVinculadaAoBanco = true;
+      setBusiness((atual) => ({ ...atual, logo_url: novaUrl }));
+
+      if (caminhoAntigo && caminhoAntigo !== novoCaminho) {
+        try {
+          const { error: cleanupError } = await storage.remove([caminhoAntigo]);
+          if (cleanupError) {
+            console.warn("[BarberHub] Não foi possível limpar a logo antiga:", cleanupError);
+          }
+        } catch (cleanupError) {
+          console.warn("[BarberHub] Falha ao excluir a logo antiga:", cleanupError);
+        }
+      }
+
+      try {
+        await recarregarBarbearia?.();
+      } catch (refreshError) {
+        console.warn("[BarberHub] Logo salva, mas a atualização do cabeçalho falhou:", refreshError);
+      }
+
       setBusinessMessage("Logo atualizada com sucesso.");
     } catch (error) {
-      console.error("[BarberHub] Erro ao enviar logo:", error);
-      setBusinessMessage(error.message || "Não foi possível atualizar a logo.");
+      console.error("[BarberHub] Erro ao atualizar logo:", error);
+
+      // Evita deixar uma imagem órfã caso o banco rejeite a nova URL.
+      if (novoCaminho && uploadConcluido && !logoVinculadaAoBanco) {
+        try {
+          const { error: rollbackError } = await storage.remove([novoCaminho]);
+          if (rollbackError) {
+            console.warn("[BarberHub] Não foi possível limpar o upload incompleto:", rollbackError);
+          }
+        } catch (rollbackError) {
+          console.warn("[BarberHub] Falha ao limpar o upload incompleto:", rollbackError);
+        }
+      }
+
+      setBusinessMessage(error?.message || "Não foi possível atualizar a logo.");
     } finally {
       setUploadingLogo(false);
     }
@@ -277,6 +402,11 @@ export default function Configuracoes() {
       return;
     }
 
+    if (deleteEmailConfirmation.trim().toLowerCase() !== String(profile.email || "").toLowerCase()) {
+      setDeleteMessage("Digite também o e-mail exato da sua conta.");
+      return;
+    }
+
     const confirmed = window.confirm(
       "Esta ação é definitiva.\n\n" +
         "Sua conta de administrador, todas as barbearias que você possui e os dados dessas unidades serão apagados.\n\n" +
@@ -296,12 +426,22 @@ export default function Configuracoes() {
         {
           body: {
             confirmacao: "APAGAR CONTA",
+            emailConfirmacao: deleteEmailConfirmation.trim(),
           },
         },
       );
 
       if (error) {
-        throw error;
+        throw new Error(
+          await obterMensagemErroFuncao(error, "Não foi possível excluir a conta."),
+        );
+      }
+
+      if (data?.pendente) {
+        setDeleteMessage(
+          data.error || "Os dados da barbearia foram removidos, mas a finalização exige suporte técnico.",
+        );
+        return;
       }
 
       if (!data?.ok) {
@@ -382,7 +522,7 @@ export default function Configuracoes() {
               <img src={logoPreview} alt={`Logo de ${business.nome || "Barbearia"}`} />
               <label className="config-upload-button">
                 {uploadingLogo ? "Enviando..." : "Trocar logo"}
-                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadLogo} disabled={uploadingLogo} />
+                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadLogo} disabled={uploadingLogo || savingBusiness} />
               </label>
               <small>PNG, JPG ou WebP. Máximo de 5 MB.</small>
             </div>
@@ -413,7 +553,7 @@ export default function Configuracoes() {
             <button type="button" className="config-button config-button--secondary" onClick={() => navigate(`/painel/${barbeariaId}/horarios`)}>
               🕐 Gerenciar horários
             </button>
-            <button type="submit" className="config-button config-button--primary" disabled={savingBusiness}>
+            <button type="submit" className="config-button config-button--primary" disabled={savingBusiness || uploadingLogo}>
               {savingBusiness ? "Salvando..." : "Salvar dados da unidade"}
             </button>
           </div>
@@ -564,6 +704,18 @@ export default function Configuracoes() {
                 disabled={deletingAccount}
               />
             </label>
+
+            <label className="config-danger-confirmation">
+              <span>Confirme o e-mail da conta: <strong>{profile.email || ""}</strong></span>
+              <input
+                type="email"
+                value={deleteEmailConfirmation}
+                onChange={(event) => setDeleteEmailConfirmation(event.target.value)}
+                placeholder="Digite seu e-mail para confirmar"
+                autoComplete="off"
+                disabled={deletingAccount}
+              />
+            </label>
           </div>
 
           <Feedback type="info">{deleteMessage}</Feedback>
@@ -574,7 +726,8 @@ export default function Configuracoes() {
               className="config-button config-button--danger"
               disabled={
                 deletingAccount ||
-                deleteConfirmation.trim() !== "APAGAR CONTA"
+                deleteConfirmation.trim() !== "APAGAR CONTA" ||
+                deleteEmailConfirmation.trim().toLowerCase() !== String(profile.email || "").toLowerCase()
               }
               onClick={deleteAccount}
             >
@@ -595,7 +748,7 @@ export default function Configuracoes() {
           </div>
           <div className="config-system-meta">
             <span>Ambiente seguro com autenticação e dados separados por unidade.</span>
-            <strong>Desenvolvido por Sigma Orbitek</strong>
+            <strong>Desenvolvido por AASORB — Soluções Digitais</strong>
           </div>
         </div>
       </div>

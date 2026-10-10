@@ -349,20 +349,6 @@
   color: #78dfa0;
 }
 
-.professional-card-actions
-  .professional-remove-button {
-  grid-column: 1 / -1;
-  border-color: rgba(193, 18, 31, 0.34);
-  background: rgba(193, 18, 31, 0.07);
-  color: #ff858b;
-}
-
-.professional-card-actions
-  .professional-remove-button:hover {
-  border-color: rgba(255, 133, 139, 0.55);
-  background: rgba(193, 18, 31, 0.12);
-}
-
 .professionals-message {
   padding: 11px 13px;
   border: 1px solid transparent;

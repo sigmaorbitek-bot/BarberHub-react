@@ -42,7 +42,7 @@ function safeText(valor) {
   ).trim();
 }
 
-function horaBR(valor) {
+function horaBR(valor, timezone = "America/Recife") {
   if (!valor) {
     return "";
   }
@@ -53,13 +53,18 @@ function horaBR(valor) {
     return "";
   }
 
-  return data.toLocaleTimeString(
-    "pt-BR",
-    {
+  try {
+    return data.toLocaleTimeString("pt-BR", {
       hour: "2-digit",
       minute: "2-digit",
-    },
-  );
+      timeZone: timezone,
+    });
+  } catch {
+    return data.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
 }
 
 function telefoneBR(valor) {
@@ -451,6 +456,7 @@ function desenharMovimento(
   item,
   y,
   tipo,
+  timezone,
 ) {
   y =
     garantirEspaco(
@@ -519,6 +525,7 @@ function desenharMovimento(
     detalhe = [
       horaBR(
         item.data_hora,
+        timezone,
       ),
       safeText(
         item.descricao,
@@ -535,6 +542,7 @@ function desenharMovimento(
     detalhe = [
       horaBR(
         item.data_hora,
+        timezone,
       ),
       safeText(
         item.descricao,
@@ -648,7 +656,7 @@ function desenharRodape(
     );
 
     doc.text(
-      "Relatório gerado pelo BarberHub - Desenvolvido por Sigma Orbitek",
+      "Relatório gerado pelo BarberHub - Desenvolvido por AASORB - Soluções Digitais",
       15,
       287,
     );
@@ -682,6 +690,21 @@ export async function gerarRelatorioFinanceiroPdf({
       barbearia?.nome,
     ) ||
     "BarberHub";
+
+  const timezone = barbearia?.timezone || "America/Recife";
+  // A lista de gestão omite arquivados. O relatório precisa utilizar
+  // todas as despesas CONTABILIZADAS que vieram do detalhamento.
+  const gastosRelatorio = movimentacoes.length
+    ? movimentacoes
+        .filter((movimento) => movimento.tipo === "gasto")
+        .map((movimento) => ({
+          descricao: movimento.descricao,
+          valor: movimento.valor_saida,
+          data_gasto: movimento.data_movimento,
+          categoria: movimento.categoria,
+          pagamento: movimento.pagamento,
+        }))
+    : gastos;
 
   const cidade =
     safeText(
@@ -975,7 +998,7 @@ export async function gerarRelatorioFinanceiroPdf({
     },
     {
       titulo:
-        "Resultado líquido",
+        "Resultado operacional",
       valor: moeda(
         resumo.resultado_liquido,
       ),
@@ -1237,6 +1260,7 @@ export async function gerarRelatorioFinanceiroPdf({
               item,
               y,
               "servico",
+              timezone,
             );
         }
       }
@@ -1270,6 +1294,7 @@ export async function gerarRelatorioFinanceiroPdf({
               item,
               y,
               "produto",
+              timezone,
             );
         }
       }
@@ -1303,6 +1328,7 @@ export async function gerarRelatorioFinanceiroPdf({
               item,
               y,
               "gasto",
+              timezone,
             );
         }
       }
@@ -1311,17 +1337,17 @@ export async function gerarRelatorioFinanceiroPdf({
     }
   }
 
-  if (gastos.length) {
+  if (gastosRelatorio.length) {
     y =
       desenharTituloSecao(
         doc,
-        "Gastos registrados",
+        "Gastos contabilizados (inclui arquivados)",
         y,
       );
 
     for (
       const gasto
-      of gastos
+      of gastosRelatorio
     ) {
       y =
         garantirEspaco(
@@ -1544,7 +1570,7 @@ export function abrirResumoFinanceiroWhatsapp({
     `Entradas: ${moeda(resumo.entradas)}`,
     `Despesas: ${moeda(resumo.despesas)}`,
     `Comissões estimadas: ${moeda(resumo.comissoes_estimadas)}`,
-    `Resultado líquido: ${moeda(resumo.resultado_liquido)}`,
+    `Resultado operacional: ${moeda(resumo.resultado_liquido)}`,
     "",
     ...agruparMovimentacoesPorDia(
       movimentacoes,
@@ -1567,15 +1593,12 @@ export function abrirResumoFinanceiroWhatsapp({
         ];
       },
     ),
-    "Gerado pelo BarberHub - Desenvolvido por Sigma Orbitek",
+    "Gerado pelo BarberHub - Desenvolvido por AASORB - Soluções Digitais",
   ].join("\n");
 
   const url =
     `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
 
-  window.open(
-    url,
-    "_blank",
-    "noopener,noreferrer",
-  );
+  const janela = window.open(url, "_blank", "noopener,noreferrer");
+  if (!janela) window.location.assign(url);
 }

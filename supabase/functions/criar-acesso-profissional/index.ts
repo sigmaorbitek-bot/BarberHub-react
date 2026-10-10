@@ -4,6 +4,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 Deno.serve(async (req) => {
@@ -11,6 +12,10 @@ Deno.serve(async (req) => {
     return new Response("ok", {
       headers: corsHeaders,
     });
+  }
+
+  if (req.method !== "POST") {
+    return resposta(405, "Método não permitido.");
   }
 
   const supabaseUrl =
@@ -74,7 +79,7 @@ Deno.serve(async (req) => {
     },
   );
 
-  let usuarioCriadoId = null;
+  let usuarioCriadoId: string | null = null;
 
   try {
     const {
@@ -121,7 +126,7 @@ Deno.serve(async (req) => {
         body?.comissaoPercentual ?? 0,
       );
 
-    if (!profissionalId) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(profissionalId)) {
       return resposta(
         400,
         "Profissional inválido.",
@@ -129,8 +134,8 @@ Deno.serve(async (req) => {
     }
 
     if (
-      !email ||
-      !email.includes("@")
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      email.length > 254
     ) {
       return resposta(
         400,
@@ -139,7 +144,8 @@ Deno.serve(async (req) => {
     }
 
     if (
-      senhaTemporaria.length < 8
+      senhaTemporaria.length < 8 ||
+      senhaTemporaria.length > 128
     ) {
       return resposta(
         400,
@@ -181,10 +187,11 @@ Deno.serve(async (req) => {
       .eq("id", profissionalId)
       .maybeSingle();
 
-    if (
-      profissionalError ||
-      !profissional
-    ) {
+    if (profissionalError) {
+      throw profissionalError;
+    }
+
+    if (!profissional) {
       return resposta(
         404,
         "Profissional não encontrado.",
@@ -255,7 +262,8 @@ Deno.serve(async (req) => {
         ) ||
         texto.includes(
           "already been registered",
-        )
+        ) ||
+        createError?.code === "email_exists"
       ) {
         return resposta(
           409,
@@ -263,11 +271,15 @@ Deno.serve(async (req) => {
         );
       }
 
-      throw (
-        createError ||
-        new Error(
-          "Não foi possível criar a conta.",
-        )
+      // O erro técnico fica apenas no log do servidor.
+      console.error("[BarberHub] Falha no Auth Admin ao criar profissional:", {
+        codigo: createError?.code,
+        status: createError?.status,
+        mensagem: createError?.message,
+      });
+      return resposta(
+        500,
+        "Não foi possível criar a conta profissional. Confira os logs da Edge Function e do Auth no Supabase.",
       );
     }
 
@@ -299,6 +311,7 @@ Deno.serve(async (req) => {
     }
 
     const {
+      data: profissionalVinculado,
       error: updateError,
     } = await admin
       .from("profissionais")
@@ -311,10 +324,22 @@ Deno.serve(async (req) => {
         comissao_percentual:
           comissao,
       })
-      .eq("id", profissionalId);
+      .eq("id", profissionalId)
+      .eq("ativo", true)
+      .is("usuario_id", null)
+      .select("id")
+      .maybeSingle();
 
     if (updateError) {
       throw updateError;
+    }
+
+    if (!profissionalVinculado) {
+      const conflito = new Error(
+        "Este profissional foi alterado durante o cadastro. Atualize a página e tente novamente.",
+      );
+      conflito.name = "ConflitoDeAcesso";
+      throw conflito;
     }
 
     const {
@@ -391,16 +416,24 @@ Deno.serve(async (req) => {
     );
 
     if (usuarioCriadoId) {
-      await admin.auth.admin
-        .deleteUser(
+      try {
+        const { error: limparErro } = await admin.auth.admin.deleteUser(
           usuarioCriadoId,
         );
+        if (limparErro) {
+          console.error("[BarberHub] Falha na compensação Auth:", limparErro);
+        }
+      } catch (falhaLimpeza) {
+        console.error("[BarberHub] Falha ao desfazer usuário criado:", falhaLimpeza);
+      }
     }
 
+    const conflito = error instanceof Error && error.name === "ConflitoDeAcesso";
     return resposta(
-      500,
-      error?.message ||
-        "Não foi possível criar o acesso profissional.",
+      conflito ? 409 : 500,
+      conflito
+        ? "Este profissional foi alterado durante o cadastro. Atualize a página e tente novamente."
+        : "Não foi possível concluir o acesso profissional. Confira os logs da Edge Function no Supabase.",
     );
   }
 });

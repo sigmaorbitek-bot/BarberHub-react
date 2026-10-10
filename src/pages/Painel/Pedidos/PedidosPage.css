@@ -662,3 +662,23 @@
   background: rgba(212, 175, 55, 0.06);
   color: var(--panel-gold);
 }
+
+/* Registro financeiro na conclusão do pedido */
+.orders-payment-choices {
+  border: 1px solid var(--panel-border); border-radius: 10px;
+  padding: 12px; gap: 12px; margin: 0;
+}
+.orders-payment-choices legend {
+  padding: 0 5px; font-size: 0.85rem; font-weight: 800;
+}
+.orders-payment-choices label {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  font-size: 0.82rem;
+}
+.orders-payment-choices input[type="radio"] {
+  width: 18px; min-height: auto; height: 18px; accent-color: #d4af37;
+}
+.orders-payment-explain {
+  padding: 11px; border: 1px solid var(--panel-border); border-radius: 8px;
+  color: var(--panel-secondary); font-size: 0.75rem; line-height: 1.6; margin: 0;
+}

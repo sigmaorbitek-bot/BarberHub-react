@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import EmptyState from "../../../components/Painel/EmptyState/EmptyState";
 
@@ -83,6 +83,15 @@ export default function AgendamentosPage() {
   const [busca, setBusca] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
+
+  const [modalFinanceiro, setModalFinanceiro] = useState(null);
+  const financeiroDialogRef = useRef(null);
+  const solicitarDadosFinanceirosRef = useRef(0);
+  const [dadosFinanceiros, setDadosFinanceiros] = useState(null);
+  const [carregandoFinanceiro, setCarregandoFinanceiro] = useState(false);
+  const [pagamentoFinanceiro, setPagamentoFinanceiro] = useState({
+    tipo: "recebido", forma: "", vencimento: hojeLocal(),
+  });
 
   const [tipoCliente, setTipoCliente] = useState("existente");
 
@@ -558,15 +567,114 @@ export default function AgendamentosPage() {
     }
   }
 
+  function fecharConclusaoFinanceira() {
+    if (saving) return;
+    solicitarDadosFinanceirosRef.current += 1;
+    setModalFinanceiro(null);
+    setDadosFinanceiros(null);
+    setCarregandoFinanceiro(false);
+    setErrorMessage("");
+  }
+
+  useEffect(() => {
+    if (!modalFinanceiro) return undefined;
+
+    const anterior = document.activeElement;
+    financeiroDialogRef.current?.focus();
+    function aoPressionarTecla(event) {
+      if (event.key === "Escape" && !saving) fecharConclusaoFinanceira();
+    }
+    document.addEventListener("keydown", aoPressionarTecla);
+    return () => {
+      document.removeEventListener("keydown", aoPressionarTecla);
+      if (anterior instanceof HTMLElement && anterior.isConnected) anterior.focus();
+    };
+  }, [modalFinanceiro, saving]);
+
+  async function abrirConclusaoFinanceira(agendamento) {
+    if (saving || carregandoFinanceiro) return;
+    setErrorMessage("");
+    setSuccessMessage("");
+    setModalFinanceiro(agendamento);
+    setDadosFinanceiros(null);
+    setCarregandoFinanceiro(true);
+    setPagamentoFinanceiro({ tipo: "recebido", forma: "", vencimento: hojeLocal() });
+    const sequencia = ++solicitarDadosFinanceirosRef.current;
+    try {
+      const { data, error } = await supabase.rpc(
+        "obter_dados_conclusao_agendamento_051",
+        { p_agendamento_id: agendamento.id },
+      );
+      if (sequencia !== solicitarDadosFinanceirosRef.current) return;
+      if (error) throw error;
+      if (!data?.length) throw new Error("Este agendamento não está mais disponível para conclusão.");
+      setDadosFinanceiros(data[0]);
+      if (Number(data[0].valor) === 0) {
+        setPagamentoFinanceiro((anterior) => ({ ...anterior, tipo: "gratuito" }));
+      }
+    } catch (error) {
+      if (sequencia === solicitarDadosFinanceirosRef.current) {
+        console.error("[BarberHub] Carregar dados financeiros do atendimento:", error);
+        setErrorMessage(traduzirErro(error));
+      }
+    } finally {
+      if (sequencia === solicitarDadosFinanceirosRef.current) {
+        setCarregandoFinanceiro(false);
+      }
+    }
+  }
+
+  async function concluirFinanceiramente(event) {
+    event.preventDefault();
+    if (!modalFinanceiro || !dadosFinanceiros || saving) return;
+    const gratis = Number(dadosFinanceiros.valor) === 0;
+    const tipo = gratis ? "gratuito" : pagamentoFinanceiro.tipo;
+    if (tipo === "recebido" && !pagamentoFinanceiro.forma) {
+      setErrorMessage("Selecione uma forma de pagamento.");
+      return;
+    }
+    if (tipo === "a_receber" && (!pagamentoFinanceiro.vencimento ||
+        pagamentoFinanceiro.vencimento < hojeLocal())) {
+      setErrorMessage("Informe uma data de vencimento válida.");
+      return;
+    }
+    setSaving(true);
+    setErrorMessage("");
+    try {
+      const { error } = await supabase.rpc("concluir_agendamento_financeiro_051", {
+        p_agendamento_id: modalFinanceiro.id,
+        p_recebimento: tipo,
+        p_forma_pagamento: tipo === "recebido" ? pagamentoFinanceiro.forma : null,
+        p_vencimento: tipo === "a_receber" ? pagamentoFinanceiro.vencimento : null,
+      });
+      if (error) throw error;
+      setModalFinanceiro(null);
+      setDadosFinanceiros(null);
+      setSuccessMessage(gratis
+        ? "Atendimento gratuito concluído."
+        : tipo === "recebido"
+          ? "Atendimento concluído e pagamento registrado."
+          : "Atendimento concluído e conta a receber criada.");
+      await carregarDados();
+    } catch (error) {
+      console.error("[BarberHub] Conclusão financeira do atendimento:", error);
+      setErrorMessage(traduzirErro(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function atualizarStatus(
     agendamento,
 
     novoStatus,
   ) {
+    if (novoStatus === "concluido") {
+      await abrirConclusaoFinanceira(agendamento);
+      return;
+    }
     const mensagens = {
       confirmado: "Confirmar este agendamento?",
-
-      concluido: "Marcar este agendamento como concluído?",
 
       cancelado: "Cancelar este agendamento?",
     };
@@ -803,11 +911,7 @@ export default function AgendamentosPage() {
                     type="button"
                     className="appointments-action appointments-action--finish"
                     onClick={() =>
-                      atualizarStatus(
-                        item,
-
-                        "concluido",
-                      )
+                      abrirConclusaoFinanceira(item)
                     }
                   >
                     Concluir
@@ -840,6 +944,107 @@ export default function AgendamentosPage() {
           description="Altere os filtros ou crie um novo agendamento."
         />
       )}
+
+      {modalFinanceiro ? (
+        <div className="appointments-modal-backdrop" onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !saving) {
+            fecharConclusaoFinanceira();
+          }
+        }}>
+          <div className="appointments-modal appointments-finance-modal" role="dialog"
+            aria-modal="true" aria-labelledby="appointments-finance-title"
+            aria-describedby="appointments-finance-description"
+            ref={financeiroDialogRef} tabIndex={-1}>
+            <div className="appointments-modal-header">
+              <div>
+                <span className="appointments-eyebrow">CONCLUSÃO FINANCEIRA</span>
+                <h2 id="appointments-finance-title">Concluir atendimento</h2>
+                <p id="appointments-finance-description">
+                  {nomeCliente(modalFinanceiro)} · {dadosFinanceiros?.servico_nome || modalFinanceiro.servicos?.nome || "Serviço"}
+                </p>
+              </div>
+              <button className="appointments-modal-close" type="button"
+                disabled={saving} aria-label="Fechar"
+                onClick={fecharConclusaoFinanceira}>×</button>
+            </div>
+            {carregandoFinanceiro ? (
+              <p className="appointments-finance-help" role="status">
+                Consultando o valor original contratado...
+              </p>
+            ) : !dadosFinanceiros ? (
+              <div className="appointments-finance-load-error" role="alert">
+                <p>{errorMessage || "Não foi possível consultar os dados financeiros deste atendimento."}</p>
+                <button type="button" className="appointments-secondary-button"
+                  onClick={() => abrirConclusaoFinanceira(modalFinanceiro)}>
+                  ↻ Tentar novamente
+                </button>
+              </div>
+            ) : (
+              <form className="appointments-finance-form" onSubmit={concluirFinanceiramente}>
+                <div className="appointments-finance-total">
+                  <span>Valor registrado no agendamento</span>
+                  <strong>{formatarMoeda(dadosFinanceiros.valor)}</strong>
+                </div>
+                {Number(dadosFinanceiros.valor) > 0 ? (
+                  <>
+                    <fieldset className="appointments-finance-choices" disabled={saving}>
+                      <legend>Como será recebido o valor deste atendimento?</legend>
+                      <label>
+                        <input type="radio" name="tipoPagamentoAgendamento" value="recebido"
+                          checked={pagamentoFinanceiro.tipo === "recebido"}
+                          onChange={() => setPagamentoFinanceiro((a) => ({ ...a, tipo: "recebido" }))}/>
+                        Pagamento recebido agora
+                      </label>
+                      <label>
+                        <input type="radio" name="tipoPagamentoAgendamento" value="a_receber"
+                          checked={pagamentoFinanceiro.tipo === "a_receber"}
+                          onChange={() => setPagamentoFinanceiro((a) => ({ ...a, tipo: "a_receber" }))}/>
+                        Receber depois (Contas a Receber)
+                      </label>
+                    </fieldset>
+                    {pagamentoFinanceiro.tipo === "recebido" ? (
+                      <div className="appointments-field">
+                        <label htmlFor="appointments-finance-forma">Forma de pagamento recebida *</label>
+                        <select id="appointments-finance-forma" value={pagamentoFinanceiro.forma}
+                          required disabled={saving}
+                          onChange={(e) => setPagamentoFinanceiro((a) => ({ ...a, forma: e.target.value }))}>
+                          <option value="">Selecione...</option>
+                          <option value="dinheiro">Dinheiro</option>
+                          <option value="pix">Pix</option>
+                          <option value="debito">Cartão de débito</option>
+                          <option value="credito">Cartão de crédito</option>
+                          <option value="outro">Outro</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="appointments-field">
+                        <label htmlFor="appointments-finance-vencimento">Data de vencimento *</label>
+                        <input id="appointments-finance-vencimento" type="date"
+                          min={hojeLocal()} value={pagamentoFinanceiro.vencimento}
+                          disabled={saving} required
+                          onChange={(e) => setPagamentoFinanceiro((a) => ({ ...a, vencimento: e.target.value }))}/>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="appointments-finance-help">Este atendimento é gratuito. Não haverá lançamento de recebimento.</p>
+                )}
+                <p className="appointments-finance-help">
+                  O status e o lançamento financeiro serão salvos juntos. Essa conclusão não pode ser repetida.
+                </p>
+                {errorMessage ? <p role="alert" className="appointments-finance-error">{errorMessage}</p> : null}
+                <div className="appointments-form-actions">
+                  <button type="button" className="appointments-secondary-button"
+                    onClick={fecharConclusaoFinanceira} disabled={saving}>Voltar</button>
+                  <button type="submit" className="appointments-primary-button" disabled={saving}>
+                    {saving ? "Concluindo..." : "Concluir com registro financeiro"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {modalOpen ? (
         <div

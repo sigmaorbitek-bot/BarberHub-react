@@ -343,7 +343,7 @@ export async function gerarComprovantePedidoPdf({ pedido, barbearia }) {
     { align: "center" },
   );
   doc.text(
-    "Gerado pelo BarberHub · Desenvolvido por Sigma Orbitek",
+    "Gerado pelo BarberHub · Desenvolvido por AASORB - Soluções Digitais",
     pageWidth / 2,
     footerY + 6,
     { align: "center" },

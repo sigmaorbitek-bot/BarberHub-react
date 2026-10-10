@@ -71,6 +71,7 @@ const PREFERENCE_BY_TYPE: Record<string, string> = {
   agendamento_alterado: "agendamento_alterado",
 
   agendamento_confirmado: "agendamento_confirmado",
+  agendamento_concluido: "agendamento_alterado",
 
   lembrete_agendamento: "lembrete_agendamento",
 
@@ -124,28 +125,22 @@ function obterCorpoErroPush(error: any) {
   }
 }
 
-function sanitizarHeaders(headers: unknown) {
-  if (!headers) {
-    return null;
-  }
-
-  try {
-    if (headers instanceof Headers) {
-      return Object.fromEntries(headers.entries());
-    }
-
-    return headers;
-  } catch {
-    return null;
-  }
+function obterEndpointHost(endpoint: string) {
+  try { return new URL(endpoint).host; }
+  catch { return "invalid-endpoint"; }
 }
 
-function obterEndpointHost(endpoint: string) {
+function endpointPushPermitido(endpoint: string) {
   try {
-    return new URL(endpoint).host;
-  } catch {
-    return "invalid-endpoint";
-  }
+    const url = new URL(endpoint);
+    if (url.protocol !== "https:" || url.username || url.password || url.port) return false;
+    const host = url.hostname.toLowerCase();
+    // Serviços públicos Web Push mais comuns (Chrome, Firefox, Safari, Edge).
+    return host === "fcm.googleapis.com"
+      || host === "updates.push.services.mozilla.com"
+      || host === "web.push.apple.com"
+      || host.endsWith(".notify.windows.com");
+  } catch { return false; }
 }
 
 async function registrarSucessoSubscription(subscriptionId: string) {
@@ -163,7 +158,7 @@ async function registrarSucessoSubscription(subscriptionId: string) {
     .eq("id", subscriptionId);
 
   if (error) {
-    console.error("[BarberSig] Falha ao registrar sucesso da subscription:", {
+    console.error("[BarberHub] Falha ao registrar sucesso da subscription:", {
       subscription_id: subscriptionId,
 
       error,
@@ -186,7 +181,7 @@ async function desativarSubscription(subscriptionId: string) {
     .eq("id", subscriptionId);
 
   if (error) {
-    console.error("[BarberSig] Falha ao desativar subscription:", {
+    console.error("[BarberHub] Falha ao desativar subscription:", {
       subscription_id: subscriptionId,
 
       error,
@@ -212,7 +207,7 @@ Deno.serve(async (request) => {
   const webhookSecret = request.headers.get("x-webhook-secret");
 
   if (!PUSH_WEBHOOK_SECRET || webhookSecret !== PUSH_WEBHOOK_SECRET) {
-    console.error("[BarberSig] Webhook não autorizado.");
+    console.error("[BarberHub] Webhook não autorizado.");
 
     return json(
       {
@@ -226,18 +221,23 @@ Deno.serve(async (request) => {
   try {
     const payload = await request.json();
 
-    const notification = payload?.record || payload?.notification || payload;
+    const event = payload?.record || payload?.notification || payload;
+    const notificationId = String(event?.id || "");
+    if (!/^[0-9a-f-]{36}$/i.test(notificationId)) {
+      return json({ ok: false, error: "ID de notificação inválido." }, 400);
+    }
 
-    if (!notification?.id || !notification?.usuario_id) {
-      console.log("[BarberSig] Notificação ignorada: destinatário ausente.");
+    // Não confiar no usuário, texto ou rota vindos do webhook.
+    const { data: notification, error: notificationError } = await supabase
+      .from("notificacoes")
+      .select("id, usuario_id, tipo, titulo, mensagem, rota, referencia_id, push_enviado_at")
+      .eq("id", notificationId)
+      .maybeSingle();
 
-      return json({
-        ok: true,
-
-        ignored: true,
-
-        reason: "notification_without_recipient",
-      });
+    if (notificationError) throw notificationError;
+    if (!notification) return json({ ok: true, ignored: true, reason: "not_found" });
+    if (notification.push_enviado_at) {
+      return json({ ok: true, skipped: "already_sent" });
     }
 
     const preferenceColumn = PREFERENCE_BY_TYPE[notification.tipo];
@@ -258,7 +258,7 @@ Deno.serve(async (request) => {
       }
 
       if (preferences && preferences[preferenceColumn] === false) {
-        console.log("[BarberSig] Push ignorado por preferência do usuário:", {
+        console.log("[BarberHub] Push ignorado por preferência do usuário:", {
           usuario_id: notification.usuario_id,
 
           tipo: notification.tipo,
@@ -322,7 +322,7 @@ Deno.serve(async (request) => {
     }
 
     if (!subscriptions?.length) {
-      console.log("[BarberSig] Nenhuma subscription ativa:", {
+      console.log("[BarberHub] Nenhuma subscription ativa:", {
         usuario_id: notification.usuario_id,
       });
 
@@ -339,14 +339,21 @@ Deno.serve(async (request) => {
       });
     }
 
+    const rota = typeof notification.rota === "string"
+      && notification.rota.startsWith("/")
+      && !notification.rota.startsWith("//")
+      && !notification.rota.includes("\\")
+        ? notification.rota
+        : "/";
+
     const pushPayload = JSON.stringify({
       notificacao_id: notification.id,
 
-      title: notification.titulo || "BarberSig",
+      title: notification.titulo || "BarberHub",
 
       body: notification.mensagem || "Você recebeu uma nova notificação.",
 
-      url: notification.rota || "/",
+      url: rota,
 
       icon: "/icons/icon-192.png",
 
@@ -354,7 +361,7 @@ Deno.serve(async (request) => {
 
       badge_count: Math.max(0, Number(unreadCount || 0)),
 
-      tag: `${notification.tipo || "barbersig"}:${
+      tag: `${notification.tipo || "barberhub"}:${
         notification.referencia_id || notification.id
       }`,
     });
@@ -379,6 +386,16 @@ Deno.serve(async (request) => {
 
     for (const subscription of subscriptions) {
       try {
+        if (!endpointPushPermitido(subscription.endpoint)) {
+          console.warn("[BarberHub] Endpoint Web Push não permitido:", {
+            subscription_id: subscription.id,
+            host: obterEndpointHost(subscription.endpoint),
+          });
+          failed += 1;
+          resultados.push({ subscription_id: subscription.id, dispositivo: null,
+            plataforma: null, navegador: null, status: "blocked_endpoint" });
+          continue;
+        }
         await webpush.sendNotification(
           {
             endpoint: subscription.endpoint,
@@ -394,6 +411,7 @@ Deno.serve(async (request) => {
 
           {
             TTL: 60 * 60,
+            timeout: 10000,
 
             urgency: "high",
           },
@@ -415,7 +433,7 @@ Deno.serve(async (request) => {
           status: "sent",
         });
 
-        console.log("[BarberSig] Push enviado:", {
+        console.log("[BarberHub] Push enviado:", {
           subscription_id: subscription.id,
 
           dispositivo: subscription.dispositivo_nome || null,
@@ -433,7 +451,6 @@ Deno.serve(async (request) => {
 
         const responseBody = obterCorpoErroPush(error);
 
-        const responseHeaders = sanitizarHeaders(error?.headers);
 
         if (statusCode === 404 || statusCode === 410) {
           invalid += 1;
@@ -452,7 +469,7 @@ Deno.serve(async (request) => {
             status: "invalid",
           });
 
-          console.warn("[BarberSig] Subscription inválida desativada:", {
+          console.warn("[BarberHub] Subscription inválida desativada:", {
             subscription_id: subscription.id,
 
             dispositivo: subscription.dispositivo_nome || null,
@@ -478,7 +495,7 @@ Deno.serve(async (request) => {
             status: "failed",
           });
 
-          console.error("[BarberSig] Push failed:", {
+          console.error("[BarberHub] Push failed:", {
             subscription_id: subscription.id,
 
             dispositivo: subscription.dispositivo_nome || null,
@@ -495,7 +512,6 @@ Deno.serve(async (request) => {
 
             body: responseBody,
 
-            headers: responseHeaders,
           });
         }
       }
@@ -510,7 +526,7 @@ Deno.serve(async (request) => {
         .eq("id", notification.id);
 
       if (updateError) {
-        console.error("[BarberSig] Falha ao registrar push_enviado_at:", {
+        console.error("[BarberHub] Falha ao registrar push_enviado_at:", {
           notificacao_id: notification.id,
 
           error: updateError,
@@ -520,7 +536,7 @@ Deno.serve(async (request) => {
 
     const unread = Math.max(0, Number(unreadCount || 0));
 
-    console.log("[BarberSig] Resultado do envio:", {
+    console.log("[BarberHub] Resultado do envio:", {
       notificacao_id: notification.id,
 
       usuario_id: notification.usuario_id,
@@ -554,7 +570,7 @@ Deno.serve(async (request) => {
       resultados,
     });
   } catch (error) {
-    console.error("[BarberSig] enviar-push:", error);
+    console.error("[BarberHub] enviar-push:", error);
 
     return json(
       {

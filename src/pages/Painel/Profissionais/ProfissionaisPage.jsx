@@ -41,6 +41,54 @@ const ACESSO_INICIAL = {
   ver_produtos: false,
 };
 
+async function mensagemErroEdgeFunction(error) {
+  const resposta = error?.context;
+
+  if (resposta instanceof Response) {
+    let detalhes = null;
+
+    try {
+      detalhes = await resposta.clone().json();
+    } catch {
+      // Respostas sem JSON também são tratadas.
+    }
+
+    const mensagem = [
+      detalhes?.message,
+      detalhes?.erro,
+      detalhes?.error,
+    ].find((valor) => typeof valor === "string" && valor.trim());
+
+    if (mensagem) {
+      return mensagem;
+    }
+
+    if (resposta.status === 401) {
+      return "Sua sessão expirou. Entre novamente e tente outra vez.";
+    }
+
+    if (resposta.status === 403) {
+      return "Seu usuário não tem permissão para liberar este acesso.";
+    }
+
+    if (resposta.status === 404) {
+      return "A função de criação de acesso não foi encontrada ou o recurso solicitado não existe. Confira o deploy no Supabase.";
+    }
+
+    if (resposta.status === 409) {
+      return "Este profissional ou e-mail já possui uma conta vinculada.";
+    }
+
+    return `Não foi possível criar o acesso (HTTP ${resposta.status}). Confira os logs da Edge Function no Supabase.`;
+  }
+
+  if (error?.name === "FunctionsFetchError" || error?.name === "FunctionsRelayError") {
+    return "Não foi possível conectar à função do Supabase. Verifique a conexão e o deploy.";
+  }
+
+  return error?.message || "Não foi possível criar o acesso profissional.";
+}
+
 function normalizarTelefone(valor) {
   return String(valor || "")
     .replace(/\D/g, "")
@@ -185,7 +233,6 @@ export default function ProfissionaisPage() {
               email_acesso,
               primeiro_acesso_pendente,
               comissao_percentual,
-              removido_em,
               created_at
             `,
           )
@@ -193,7 +240,6 @@ export default function ProfissionaisPage() {
             "barbearia_id",
             barbeariaId,
           )
-          .is("removido_em", null)
           .order("ativo", {
             ascending: false,
           })
@@ -694,72 +740,6 @@ export default function ProfissionaisPage() {
     }
   }
 
-  async function removerDaEquipe(
-    profissional,
-  ) {
-    if (profissional.usuario_id) {
-      setMessageType("error");
-      setMessage(
-        "Este profissional ainda possui uma conta vinculada. Remova a conta de acesso antes de excluí-lo da equipe.",
-      );
-      return;
-    }
-
-    const confirmar = window.confirm(
-      `Excluir ${profissional.nome} da equipe?\n\nEle deixará de aparecer no painel e em novos agendamentos. O histórico de atendimentos será preservado.`,
-    );
-
-    if (!confirmar) {
-      return;
-    }
-
-    try {
-      setMessage("");
-
-      const { data, error } =
-        await supabase.functions.invoke(
-          "remover-profissional-equipe",
-          {
-            body: {
-              profissionalId:
-                profissional.id,
-              confirmacao:
-                "REMOVER PROFISSIONAL",
-            },
-          },
-        );
-
-      if (error) {
-        throw error;
-      }
-
-      if (data?.sucesso === false) {
-        throw new Error(
-          data?.erro ||
-            "Não foi possível excluir o profissional da equipe.",
-        );
-      }
-
-      setMessageType("success");
-      setMessage(
-        `${profissional.nome} foi removido da equipe. O histórico foi preservado.`,
-      );
-
-      await carregarProfissionais();
-    } catch (error) {
-      console.error(
-        "[BarberHub] Erro ao remover profissional da equipe:",
-        error,
-      );
-
-      setMessageType("error");
-      setMessage(
-        error?.message ||
-          "Não foi possível excluir o profissional da equipe.",
-      );
-    }
-  }
-
   async function abrirAcesso(
     profissional,
   ) {
@@ -996,12 +976,11 @@ export default function ProfissionaisPage() {
           );
 
         if (error) {
-          throw error;
+          throw new Error(await mensagemErroEdgeFunction(error));
         }
 
-        if (
-          data?.ok === false
-        ) {
+        // Confirmação explícita: resposta vazia não significa sucesso.
+        if (data?.ok !== true) {
           throw new Error(
             data?.message ||
               "Não foi possível criar o acesso.",
@@ -1372,20 +1351,6 @@ export default function ProfissionaisPage() {
                       ? "Desativar"
                       : "Reativar"}
                   </button>
-
-                  {!profissional.usuario_id ? (
-                    <button
-                      type="button"
-                      className="professional-remove-button"
-                      onClick={() =>
-                        removerDaEquipe(
-                          profissional,
-                        )
-                      }
-                    >
-                      Excluir da equipe
-                    </button>
-                  ) : null}
                 </div>
               </article>
             ),

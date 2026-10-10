@@ -222,3 +222,10 @@
     flex-direction: column;
   }
 }
+
+.daily-finance-date, .daily-finance-summary, .daily-finance-summary > div,
+.daily-finance-group, .daily-finance-list, .daily-finance-row {
+  min-width: 0;
+}
+.daily-finance-money, .daily-finance-summary strong { overflow-wrap: anywhere; }
+.daily-finance-row span { overflow-wrap: anywhere; }
